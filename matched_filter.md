@@ -1,12 +1,12 @@
 # How a matched filter works
 
+*For the repo's comparison plan (classical vs learned-template vs latent discrimination), see [PROJECT.md](PROJECT.md).*
+
 ## What problem it solves
 
 You receive a noisy measurement and want to decide whether a **known waveform** s(t) (the “template” or “reference”) is present. A common model is **additive white Gaussian noise (AWGN)**:
 
-
 x(t) = s(t) + n(t)
-
 
 under hypothesis **signal present**, and x(t) = n(t) under **noise only**. The matched filter is the **linear** processing rule that **maximizes output signal-to-noise ratio (SNR)** at a chosen time instant—usually the moment you want to declare “pulse here” or sample the correlator output.
 
@@ -16,9 +16,7 @@ So: **same statistical goal as good detection**, restricted to **linear** filter
 
 For discrete samples, let the (complex) signal be s[0],\ldots,s[N-1]. The **matched filter** output at lag k is (up to a scale) the **correlation** of the received data with the **time-reversed conjugate** of the template:
 
-
 y[k] \propto \sum_{n} x[n] s^*[n - k]
-
 
 Intuition: you are **sliding** the expected shape s along the data and asking, at each shift, “how much does this segment look like s?” Conjugation matters for **complex baseband (I/Q)** so phases line up correctly.
 
@@ -40,13 +38,45 @@ Convolution/correlation in time is **multiplication** in frequency (with appropr
 - **Colored noise:** you should use a **whitener** before matching, or match to a **noise-whitened** signal—otherwise “match s” is no longer SNR-optimal.
 - **Unknown delay / Doppler:** you search over delays (and possibly Doppler) by **bank** of matched filters or FFT fast convolution over a grid.
 
-## Link to this project (learned latent discrimination)
+## What this repo implements
 
-A classical matched filter uses **one** fixed linear projection tuned to **one** template and **one** noise model. This repo’s direction is an **autoencoder bottleneck** z \in \mathbb{R}^L plus a **reference bank** and **latent-distance** decisions—**multi-template**, learned compression, not the same optimality story as a matched filter under AWGN, but a practical retrieval-style detector when z is trained to separate hypotheses.
+Theory above describes a **single known template** and optimal linear reception. The code implements **multi-class discrimination** with a **small template bank** (one template per class on RadChar/MNIST baselines), not pulse compression on a long continuous stream. That is still matched-filter *spirit*: score each hypothesis by correlation-like similarity to a reference waveform (or cosine similarity on MNIST).
 
-**Head-to-head in this repo:** Run `scripts/eval_matched_filter_baseline.py` (class-mean templates + correlation) against `scripts/eval_nn_retrieval.py` (latent k-NN) on the **same** train/val/test splits.
+*For how this baseline compares to latent retrieval and the overall experiment plan, see [PROJECT.md](PROJECT.md).*
 
-**Alternative in this repo:** Train an **autoencoder** on the reference corpus, store **encoder outputs** as a **latent reference bank**, and at runtime **encode** the live segment and **nearest-neighbor** (or prototype distance) in that space—**no FFT / explicit matched filter** in that branch. **Presence** can be declared when the live code is **close enough** to some reference (minimum distance below a threshold \tau); **far** from all references suggests absent or off-library. That is **learned embedding + retrieval**; it only behaves like good matching if training makes z discriminative. Details: `PROBLEM_AND_APPROACH.md` (primary latent pipeline); implementation: `gcfcr/models/autoencoder.py`, `reference_bank.py`.
+Implementation module: `gcfcr/methods/classical_matched_filter.py` (CLI below is a thin wrapper).
+
+### Script: `scripts/eval_matched_filter_baseline.py`
+
+**Purpose:** Accuracy-only baseline on the same `build_dataset` train/val/test splits as the autoencoder pipeline.
+
+| Dataset | Templates (from `split=train` only) | Query scoring | Decision |
+|---------|-------------------------------------|---------------|----------|
+| **RadChar** | Per-class **mean complex IQ** (512 samples), then **unit energy** per row | Hermitian inner product \(\langle \mu_c, x \rangle\); score \(= \lvert \cdot \rvert\) (magnitude ≈ **noncoherent** w.r.t. unknown phase) | `argmax` over 5 classes |
+| **MNIST** | Per-class **mean flattened image** (784), **L2-normalized** per row | Cosine similarity to each template | `argmax` over 10 classes |
+
+**RadChar eval detail:** Each query IQ is **unit-normalized** in energy before scoring (same as the benchmark script), so scores are comparable across amplitude.
+
+**Caveat:** Templates are **estimated class means**, not a single known \(s(t)\) in AWGN. Optimality of the textbook matched filter does not strictly apply; this is a **lightweight classical competitor** for RadChar.
+
+### Script: `scripts/benchmark_matched_filter_runtime.py` (RadChar only)
+
+Same module as above: `gcfcr/methods/classical_matched_filter.py` (`run_radchar_cpu_runtime_benchmark`).
+
+**Purpose:** Same template construction as RadChar in `eval_matched_filter_baseline.py`, plus **timed** discrimination (per-frame latency, split throughput, accuracy).
+
+**Templates:** Again **5 class-mean** complex waveforms from train, **unit energy** per template.
+
+**Modes:**
+
+| Mode | Flag | What runs | Notes |
+|------|------|-----------|--------|
+| **Time-domain** | `--mode time` | For each query and class: \(\lvert \sum_n x[n]\,\mu_c^*[n] \rvert\) after unit-normalizing \(x\) | One inner product per class; **no explicit lag search** (aligned 512-sample frame). |
+| **FFT-domain** | `--mode fft` (default) | `FFT(x) * conj(FFT(μ_c))` then `IFFT`; score \(= \max_k \lvert \text{corr}[k] \rvert\) over lag \(k\) | Implements **circular** correlation via FFT; **peak over lag** is the score (closer to “unknown delay within the frame” than a single dot product). |
+
+**CPU:** Intended for `--device cpu` with `--cpu-threads` set for reproducible single-thread timing.
+
+**Not implemented yet (planned baselines per [PROJECT.md](PROJECT.md)):** Multi-template or full-train banks, learned decoded templates, Doppler grids, overlap-add streaming, or CFAR-style detection thresholds.
 
 ---
 

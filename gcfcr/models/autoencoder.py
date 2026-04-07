@@ -5,7 +5,7 @@ Train on RadChar (stacked Re/Im IQ) or MNIST (``input_dim=784`` flattened images
 Encoder output + ``LatentReferenceBank`` implements live **encode → nearest-neighbor /
 threshold** discrimination without FFT or a classical matched filter.
 
-See ``PROBLEM_AND_APPROACH.md`` (primary method).
+See ``PROJECT.md`` (primary method).
 """
 
 from __future__ import annotations

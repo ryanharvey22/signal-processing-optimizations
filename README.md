@@ -1,21 +1,23 @@
 # Latent reference autoencoders for waveform discrimination
 
-Train an **autoencoder** on **RadChar** (synthetic radar IQ) or **MNIST** (prototype). Encode library waveforms into a **small latent code**, store them as a **reference bank**, then at runtime **encode the live segment** and decide **presence** and **identity** by **distance** in latent space (threshold + nearest neighbors)—**no FFT or classical matched filter** on that path.
+**Goal:** Determine whether **latent-space discrimination** can beat or match classical waveform matching in **runtime** while keeping accuracy high. If latent matching cannot deliver a better speed/accuracy tradeoff, we should not use it.
 
 ## Docs
 
 | File | Contents |
 |------|----------|
-| [PROBLEM_AND_APPROACH.md](PROBLEM_AND_APPROACH.md) | Full problem statement, AE pipeline, dataset plan |
-| [LATENT_DATASET_PLAN.md](LATENT_DATASET_PLAN.md) | **Plan:** train AE → export latent reference `.npz` + manifest (phases, leakage, checklist) |
-| [matched_filter.md](matched_filter.md) | Classical matched filter (baseline intuition) |
-| [sidequest.md](sidequest.md) | Optional: skip full FFT when only *K* bins matter (sparse-coefficient deployment idea) |
+| [PROJECT.md](PROJECT.md) | Comparison-first project objective, methods under test, evaluation protocol |
+| [DATASETS.md](DATASETS.md) | RadChar and MNIST: schema, classes, splits, how to print empirical stats |
+| [PAPERS.md](PAPERS.md) | Suggested reading: detection, matched filtering, radar/AMC ML, embeddings |
+| [matched_filter.md](matched_filter.md) | Full matched-filter and FFT correlation story (classical baseline) |
 
 ## Code layout
 
 - `gcfcr/data/` — load RadChar HDF5 or MNIST (`build_dataset`)
+- `gcfcr/methods/` — **one module per experiment-matrix method** (classical MF, latent retrieval, stubs for the rest); see [PROJECT.md](PROJECT.md)
 - `gcfcr/models/autoencoder.py` — `RadCharIQAutoencoder`, `iq_to_real_stacked`
 - `gcfcr/models/reference_bank.py` — `LatentReferenceBank` (nearest-neighbor lookup)
+- `scripts/*.py` — thin CLIs that call into `gcfcr.methods.*`
 
 ## Setup
 
@@ -24,48 +26,62 @@ pip install -r requirements.txt
 python scripts/verify_loaders.py
 ```
 
-Place `RadChar-Tiny.h5` under `data/radchar/` (from [Kaggle](https://www.kaggle.com/datasets/abcxyzi/radchar-icassp-2023)) or set `RADCHAR_H5`.
+Place `RadChar-Tiny.h5` under `data/radchar/` (from [Kaggle](https://www.kaggle.com/datasets/abcxyzi/radchar-icassp-2023)) or set `RADCHAR_H5`. Dataset details: [DATASETS.md](DATASETS.md). Empirical counts/SNR histograms: `python3 scripts/dataset_stats.py`.
 
-## Training (MNIST first)
+## Main benchmark workflow (RadChar)
 
 ```bash
-pip install -r requirements.txt   # includes tqdm for progress bars
-python scripts/train_autoencoder.py --dataset mnist --epochs 30 --export-npz data/latent/mnist_train_L64.npz
+pip install -r requirements.txt
 ```
 
-You get an **epoch** bar plus **per-batch** train/val bars (running MSE). Use `--no-progress` for plain logs.
-
-Checkpoint: `checkpoints/ae_mnist_L64_best.pt`. Latent bank: `data/latent/mnist_train_L64.npz` plus `.manifest.json`. Optional: `--joint-cls-weight 0.1` for a linear classifier on \(z\) alongside MSE.
-
-RadChar (requires `data/radchar/RadChar-Tiny.h5`): `--dataset radchar`.
-
-**k-NN retrieval (val or test vs. train bank):**
+### 1) Classical matched-filter runtime baseline
 
 ```bash
-python scripts/eval_nn_retrieval.py \
-  --checkpoint checkpoints/ae_mnist_L64_best.pt \
-  --npz data/latent/mnist_train_L64.npz \
+# Per-frame latency + split timing (FFT/IFFT matched-filter path)
+python3 scripts/benchmark_matched_filter_runtime.py \
+  --split val --mode fft --batch-size 256 --cpu-threads 1
+
+# Smaller quick subset run
+python3 scripts/benchmark_matched_filter_runtime.py \
+  --split val --mode fft --max-eval-samples 2000 --batch-size 256 --cpu-threads 1
+
+# Full available holdout timing
+python3 scripts/benchmark_matched_filter_runtime.py \
+  --split all --mode fft --batch-size 256 --cpu-threads 1
+```
+
+The script prints:
+- `single_frame_ms` (one-frame discrimination latency, averaged over repeats)
+- `dataset_discrimination_s` (total turnaround for the selected split/subset)
+- `mean_frame_ms` and `fps`
+- `accuracy`
+
+### 2) Latent retrieval baseline
+
+Train/export a latent bank:
+
+```bash
+python3 scripts/train_autoencoder.py \
+  --dataset radchar --epochs 30 \
+  --export-npz data/latent/radchar_train_L64.npz
+```
+
+Evaluate latent k-NN against val/test:
+
+```bash
+python3 scripts/eval_nn_retrieval.py \
+  --checkpoint checkpoints/ae_radchar_L64_best.pt \
+  --npz data/latent/radchar_train_L64.npz \
   --split val --k 5
 ```
 
-**Matched-filter-style baseline** (same splits: class **mean templates** on train, correlation / cosine on eval — see script docstring for caveats):
-
-```bash
-python scripts/eval_matched_filter_baseline.py --dataset mnist --split val
-python scripts/eval_matched_filter_baseline.py --dataset mnist --split test
-# RadChar (needs HDF5):
-python scripts/eval_matched_filter_baseline.py --dataset radchar --split val
-```
-
-Compare the printed **accuracy** to k-NN. On MNIST the linear template bank is usually **weaker** than a trained latent system; on **RadChar** the complex inner-product baseline is a **closer** classical competitor.
-
-Load the bank for retrieval:
+Load a latent bank manually:
 
 ```python
 import numpy as np
 import torch
 from gcfcr.models import LatentReferenceBank
 
-d = np.load("data/latent/mnist_train_L64.npz")
+d = np.load("data/latent/radchar_train_L64.npz")
 bank = LatentReferenceBank(torch.from_numpy(d["z"]), torch.from_numpy(d["label"]))
 ```
