@@ -1,0 +1,10 @@
+# Local data caches
+data/mnist/
+data/radchar/*.h5
+data/latent/*.npz
+checkpoints/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/

@@ -1,0 +1,15 @@
+{
+  "dataset": "mnist",
+  "input_dim": 784,
+  "latent_dim": 64,
+  "hidden_dims": [
+    512,
+    256
+  ],
+  "num_classes": 10,
+  "joint_cls_weight": 0.0,
+  "epochs": 2,
+  "seed": 42,
+  "checkpoint": "/Users/ryanharvey/genetically_chosen_fourier_coeffs_research/checkpoints/ae_mnist_L64_best.pt",
+  "val_mse_at_save": 0.02346415129303932
+}
