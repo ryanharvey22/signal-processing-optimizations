@@ -1,0 +1,4 @@
+# NumPy-only deployed inference; h5py is needed only for RadChar input.
+numpy>=2.0,<3
+h5py>=3.10,<4
+threadpoolctl>=3.2,<4
