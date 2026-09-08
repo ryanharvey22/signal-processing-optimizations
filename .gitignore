@@ -8,3 +8,9 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+
+# Reproducible experiment outputs and downloaded data provenance
+experiments/
+artifacts/
+data/radchar/*.source.json
+build/

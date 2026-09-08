@@ -8,7 +8,6 @@ from typing import Literal, Optional, Union
 
 from torch.utils.data import Dataset
 
-from gcfcr.data.mnist_data import MNISTDataset
 from gcfcr.data.radchar import RadCharDataset
 
 DatasetName = Literal["radchar", "mnist"]
@@ -21,7 +20,8 @@ def build_dataset(
     split: str = "train",
     radchar_filename: str = "RadChar-Tiny.h5",
     radchar_h5: Optional[Union[str, Path]] = None,
-    radchar_train_fraction: float = 0.9,
+    radchar_train_fraction: float = 0.8,
+    radchar_val_fraction: float = 0.1,
     radchar_seed: int = 42,
     radchar_max_samples: Optional[int] = None,
     mnist_download: bool = True,
@@ -35,13 +35,12 @@ def build_dataset(
         Root directory for cached data (MNIST downloads here; RadChar default path is
         ``data_dir / "radchar" / radchar_filename`` unless ``radchar_h5`` is set).
     split
-        ``train`` | ``val`` | ``test``. For RadChar, ``test`` uses the same holdout as
-        ``val`` unless you point to a separate HDF5 file.
+        ``train`` | ``val`` | ``test``. RadChar uses disjoint 80/10/10 splits.
     radchar_h5
         Explicit path to ``*.h5``. If omitted, uses ``RADCHAR_H5`` env var, then
         ``data_dir/radchar/radchar_filename``.
     radchar_max_samples
-        Load only the first N examples (after any shuffle split) for quick experiments.
+        Cap the selected split after assigning the full population to train/val/test.
 
     Returns
     -------
@@ -64,11 +63,14 @@ def build_dataset(
             path,
             split=split,
             train_fraction=radchar_train_fraction,
+            val_fraction=radchar_val_fraction,
             seed=radchar_seed,
             max_samples=radchar_max_samples,
         )
 
     if name == "mnist":
+        from gcfcr.data.mnist_data import MNISTDataset
+
         return MNISTDataset(
             data_dir / "mnist",
             split=split,

@@ -1,151 +1,139 @@
-# Datasets
+# Datasets and evaluation splits
 
-This repo uses two datasets: **RadChar** (primary, synthetic radar IQ) and **MNIST** (debug / pipeline prototype). Both are loaded through [`gcfcr/data/pipeline.py`](gcfcr/data/pipeline.py) via `build_dataset("radchar" | "mnist", ...)`.
+RadChar is the primary radar benchmark. MNIST remains an image pipeline sanity
+check. The optimized experiment also supplies a small, explicitly synthetic radar
+fixture for tests and architecture checks when release data is unavailable.
 
----
+## RadChar release
 
-## RadChar (radar IQ)
+Sources: [upstream RadChar repository](https://github.com/abcxyzi/RadChar),
+[dataset download](https://www.kaggle.com/datasets/abcxyzi/radchar-icassp-2023), and
+[the original paper](https://arxiv.org/abs/2306.13105).
 
-### Role in the project
+The release contains five pulsed radar families at SNRs from -20 through 20 dB,
+with 512 complex IQ samples per frame at 3.2 MHz. Tiny contains 50,000 frames;
+Small, Baseline and Large contain larger nested populations. **Tiny is a subset
+of Small, which is a subset of Baseline, which is a subset of Large.** Different
+variants are not independent training and test datasets. Use one release file
+and create disjoint splits within it. The primary-source schema has an `iq`
+dataset and a structured `labels` dataset.
 
-Main benchmark for waveform discrimination: complex baseband segments, multiple radar **signal types**, and **SNR** metadata. Matches the experiment matrix in [`PROJECT.md`](PROJECT.md).
+| Field | Meaning |
+|---|---|
+| `index` | Identifier supplied by the release |
+| `signal_type` | Integer class label |
+| `number_of_pulses` | Pulse count |
+| `pulse_width` | Pulse width in seconds |
+| `time_delay` | Pulse delay in seconds |
+| `pulse_repetition_interval` | PRI in seconds |
+| `signal_to_noise_ratio` | SNR in dB |
 
-### Source and files
+Class IDs are 0 coherent pulse train, 1 Barker, 2 polyphase Barker, 3 Frank, and
+4 linear frequency modulation. Class labels, SNR and pulse parameters are
+metadata for evaluation; they are never supplied as inference features.
 
-- **Paper / release:** [RadChar](https://github.com/abcxyzi/RadChar) (ICASSP 2023); [Kaggle: radchar-icassp-2023](https://www.kaggle.com/datasets/abcxyzi/radchar-icassp-2023).
-- **Loader path (default):** `data/radchar/RadChar-Tiny.h5`, or override with env var **`RADCHAR_H5`**, or `build_dataset(..., radchar_h5=...)`.
-- **Variants (catalog):** RadChar-Tiny (~50k waveforms), Small, Baseline, Large (see upstream README). This codebase is tested most often against **RadChar-Tiny**.
+Place a downloaded file at `data/radchar/RadChar-Tiny.h5`, set `RADCHAR_H5` for
+legacy dataset factory calls, or pass an explicit HDF5 path to the optimized
+experiment. Data loading does not download anything. Release files and generated
+waveform arrays are excluded from Git. Retain the upstream citation and consult
+the source's current usage terms before redistributing dataset files.
 
-### HDF5 layout (as read by [`gcfcr/data/radchar.py`](gcfcr/data/radchar.py))
+## Fixed train, validation and test assignments
 
-| Dataset in file | Shape / type | Description |
-|-----------------|----------------|-------------|
-| `iq` | `(N, 512)`, `complex64` | Complex baseband IQ samples per example. |
-| `labels` | structured array, length `N` | One row per example; field names below. |
+The default split is now **80% training, 10% validation, 10% test**, generated
+with `numpy.random.default_rng(seed)` and default seed 42. Validation and test
+have distinct memberships. This changes the old protocol, which used the same
+holdout for both names; old checkpoints and reported scores are not directly
+comparable with a newly split experiment.
 
-**Structured label fields** (exposed in the `meta` dict returned by the dataset):
+Assignment happens on the **full population before any sample cap**. Selected
+indices are sorted for reading. A cap takes a seeded random subset from its
+already assigned split, across the file rather than from a class-ordered prefix.
+Caps at different sizes are nested for the same seed. Changing a training or
+validation cap therefore cannot move a test row into the training set.
 
-| Field | Type (typical) | Meaning |
-|-------|----------------|---------|
-| `signal_type` | int 0–4 | Class index for classification. |
-| `signal_to_noise_ratio` | int | SNR in dB (exposed as `snr_db` in `meta`). |
-| `number_of_pulses` | int | Pulse count parameter for the synthetic scene. |
-| `pulse_width` | float | Pulse width (simulation parameter). |
-| `time_delay` | float | Time delay parameter. |
-| `pulse_repetition_interval` | float | PRI. |
-| `index` | int | Original row / dataset index from the release. |
+Known integer group IDs in a `group_id`/`group` label field or a top-level
+`group_ids` dataset are assigned as indivisible units. In this case, 80/10/10
+refers to groups, and row counts may differ when groups have different sizes.
+A cap can omit some examples from a selected group but cannot put them in a
+different split. The standard Tiny release has no explicit independent-waveform
+or acquisition-session group ID, so its manifest claims **row separation only**.
+It does not establish independence of latent source realizations that are not
+identified by the release. Do not manufacture group IDs from class or SNR.
 
-### Classes (5)
+Training alone fits encoders, spectral/PCA transforms, template banks and
+prototypes. Validation selects hyperparameters and checkpoints. Evaluate the
+held-out test set after those choices are frozen. Any augmented replicas of a
+clean waveform must inherit the original waveform's split; split the originals
+before augmentation, not the resulting noisy copies.
 
-| ID | Name (in code) | Typical interpretation (radar literature) |
-|----|----------------|-------------------------------------------|
-| 0 | `coherent_pulse_train` | Coherent unmodulated pulse train |
-| 1 | `barker_code` | Barker-coded pulse |
-| 2 | `polyphase_barker_code` | Polyphase Barker |
-| 3 | `frank_code` | Frank-coded waveform |
-| 4 | `linear_frequency_modulated` | LFM (chirp) |
+## Loading and provenance
 
-Constants: `gcfcr.data.radchar.SIGNAL_TYPE_NAMES`, `NUM_SIGNAL_TYPES = 5`.
+`gcfcr.optimized.data.load_experiment_data` returns `ExperimentData` containing
+`train`, `val`, `test` and a manifest. Each `SignalSplit` exposes:
 
-### Sample shape and dtype
+| Attribute | Shape and meaning |
+|---|---|
+| `iq` | `(N, 512)` complex64 input samples |
+| `y` | `(N,)` int64 class labels |
+| `snr_db` | `(N,)` float32 SNR metadata |
+| `row_ids` | `(N,)` physical row offsets in this file |
+| `group_ids` | Known original groups, or `None` when unavailable |
 
-- One example: **`iq`** tensor shape **`(512,)`**, **`torch.complex64`**.
-- For the MLP autoencoder path, IQ is stacked to real **`[Re, Im]`** → **`(1024,)`** float via `iq_to_real_stacked`.
+The manifest records the source file's SHA-256, source population size, split
+protocol version, seed, fractions, selected counts, class counts, row hashes,
+waveform hashes and label hashes. File hashing reads bounded chunks. Its data
+arrays contain only the requested split members; the loader never reads the
+whole waveform dataset merely to discard most of it. HDF5 selections are sorted
+and issued in bounded batches. Metadata and chosen waveform arrays reside in
+RAM; for very large releases, set explicit caps appropriate to the machine.
 
-### Published summary statistics (not file-specific)
+```python
+from gcfcr.optimized.data import load_experiment_data
 
-From the RadChar release / paper (verify on your exact file if needed):
-
-- **RadChar-Tiny:** on the order of **50,000** examples (upstream default).
-- **SNR:** reported range roughly **−20 dB to +20 dB** across the dataset (exact discrete levels depend on the HDF5 contents).
-- **Sampling:** baseband IQ at **512 samples** per segment; published context often cites **3.2 MHz** sampling for the synthetic generation (see upstream docs).
-
-Class balance in Tiny is intended to support classification; **empirical** counts and SNR histograms depend on the file on disk.
-
-### Empirical statistics (your machine)
-
-With `RadChar-Tiny.h5` in place, run:
-
-```bash
-python3 scripts/dataset_stats.py --radchar-only --data-dir data
+data = load_experiment_data(
+    "data/radchar/RadChar-Tiny.h5",
+    seed=42, train_cap=40000, val_cap=5000, test_cap=5000,
+)
+assert not set(data.train.row_ids) & set(data.test.row_ids)
 ```
 
-This prints:
+The legacy PyTorch `RadCharDataset` and `build_dataset("radchar", ...)` share the
+same split helper. `radchar_train_fraction` defaults to 0.8;
+`radchar_val_fraction` defaults to 0.1. Fractions must be positive and sum to less
+than one so a test split remains. `radchar_max_samples` now caps the selected
+split after assignment. `split="all"` remains available for descriptive work;
+it is not an independent evaluation holdout.
 
-- total `N` in the file;
-- **per-class counts** on the full file;
-- **SNR value histogram** (each discrete SNR and count);
-- **train / val** sizes and per-class counts using the **same** `train_fraction=0.9` and **`seed=42`** as [`RadCharDataset`](gcfcr/data/radchar.py).
+## Synthetic engineering fixture
 
-### Train / validation / test splits (this repo)
+Calling `load_experiment_data` without an HDF5 path generates
+`synthetic-radar-fixture-v1`. This is original test data, **not RadChar**, a
+reimplementation of its generator, or evidence of state-of-the-art performance.
+The five families are unmodulated pulse trains, binary Barker-coded pulses,
+a generic quadriphase code, Frank-coded pulses, and chirps. Each example is a
+fresh random realization. Phase, circular translation, carrier offset,
+amplitude, pulse count and timing parameters are drawn independently of class;
+additive complex Gaussian noise uses SNRs -12, -6, 0, 6, 12 and 18 dB.
 
-- **`train` / `val`:** single HDF5 is shuffled with `numpy.random.default_rng(seed)` (default **`seed=42`**), **`train_fraction=0.9`** (default). Train gets the first 90% of the permutation, val the rest. Indices are **sorted** for reproducible ordering.
-- **`test`:** currently uses the **same index set as `val`** unless you point `build_dataset` at a **different HDF5** for held-out evaluation.
-- **`all`:** every example in the loaded slice (after optional `max_samples` truncation).
+The fixture assigns one independent realization to each row/group. It contains
+no replicated clean waveform with separately generated noise across the splits.
+The manifest explicitly identifies the source as synthetic and records the seed
+and waveform hash. Its simplified signal family definitions and circular-delay
+assumption deliberately limit the interpretation of accuracy results. Use it for
+mathematical checks, reproducible smoke training and deployment parity checks;
+use the actual release for the radar comparison.
 
-`build_dataset(..., radchar_max_samples=N)` truncates to the **first N rows** of the file **before** the train/val split (same as `RadCharDataset`).
+## MNIST image sanity check
 
----
+MNIST is loaded through torchvision on demand. Merely importing the radar
+pipeline does not import torchvision. The official training population has
+60,000 images and the official test population has 10,000 images. Their digit
+counts are **not exactly equal**. This repository uses a fixed seed-42 random
+90/10 split of the official training population for training and validation;
+test uses the official held-out population. Per-digit counts should be measured
+from the actual data, not assumed to be 6,000 or 1,000.
 
-## MNIST (handwritten digits)
-
-### Role in the project
-
-Fast sanity checks for loaders, autoencoder plumbing (`input_dim=784`), and retrieval scripts without radar data.
-
-### Source and files
-
-- **Library:** `torchvision.datasets.MNIST`.
-- **Root in this repo:** `data/mnist/` (created on first download).
-
-### Official split sizes (canonical)
-
-| Split | Size | Notes |
-|-------|------|--------|
-| Official **train** | **60,000** | 28×28 grayscale, 10 classes. |
-| Official **test** | **10,000** | Held-out evaluation set. |
-
-**Class balance (official train):** each digit **0–9** appears **6,000** times in the full 60k train set. **Test:** **1,000** images per digit.
-
-### How this repo splits MNIST ([`gcfcr/data/mnist_data.py`](gcfcr/data/mnist_data.py))
-
-- **`split="train"`:** 90% of official **train** → **54,000** examples. Subset chosen with `torch.randperm` and **`generator` seed 42** (reproducible).
-- **`split="val"`:** remaining 10% of official train → **6,000** examples.
-- **`split="test"`:** full official **test** → **10,000** examples.
-
-Per-digit counts in **our** train/val are **approximately** 5,400 / 600 each but **not guaranteed** to be exact after the random split; use `dataset_stats.py` for exact counts.
-
-### Sample shape and dtype
-
-- **`image`:** `float32`, shape **`(1, 28, 28)`**, values in **`[0, 1]`** (`transforms.ToTensor()`).
-- **`target`:** `int` in **`0 .. 9`**.
-- For `RadCharIQAutoencoder(input_dim=784)`: flatten to **`(784,)`**.
-
-### Empirical statistics (your machine)
-
-```bash
-python3 scripts/dataset_stats.py --mnist-only --data-dir data
-```
-
-Prints per-digit counts for **train**, **val**, and **test** as implemented by `MNISTDataset`.
-
----
-
-## Side-by-side summary
-
-| | RadChar | MNIST |
-|---|---------|--------|
-| **Modality** | Complex IQ (radar baseband) | Grayscale image |
-| **Classes** | 5 (`signal_type`) | 10 (digits) |
-| **Core input shape** | `(512,)` complex → `(1024,)` real stacked | `(1,28,28)` → `(784,)` flat |
-| **Extra labels** | SNR, pulse params, PRI, etc. | None |
-| **Default local path** | `data/radchar/RadChar-Tiny.h5` | `data/mnist/` |
-| **Typical Tiny size** | ~50k (upstream) | 60k+10k official |
-
----
-
-## Reproducibility checklist
-
-- **RadChar:** fixed split depends on **`radchar_seed`** (default **42**) and **`radchar_train_fraction`** (default **0.9**).
-- **MNIST:** fixed split depends on **`torch.Generator().manual_seed(42)`** inside `MNISTDataset`.
-- For comparable benchmarks across methods, use the same **`data_dir`**, **`RADCHAR_H5`** (if any), and no accidental **`max_samples`** mismatch unless intentional.
+Each image is float32, shape `(1, 28, 28)`, with values in `[0, 1]`. The legacy
+MLP autoencoder flattens this to 784 elements. MNIST results do not validate the
+radar front end, nuisance handling, or matched-filter discrimination claims.

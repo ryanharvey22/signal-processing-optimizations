@@ -12,7 +12,6 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +21,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gcfcr.data.radchar import SIGNAL_TYPE_NAMES
+from gcfcr.optimized.data import read_radchar_metadata, split_indices
 
 
 def _radchar_h5_path(data_dir: Path) -> Path | None:
@@ -37,7 +37,7 @@ def radchar_stats(h5_path: Path) -> None:
     import h5py
 
     with h5py.File(h5_path, "r") as f:
-        labels = np.asarray(f["labels"][:])
+        labels, groups = read_radchar_metadata(f)
         n = labels.shape[0]
 
     st = labels["signal_type"].astype(np.int64)
@@ -57,15 +57,10 @@ def radchar_stats(h5_path: Path) -> None:
     for v, c in zip(snr_vals, snr_cnt):
         print(f"    {int(v)}: {int(c)}")
 
-    # Train/val split mirror RadCharDataset
-    rng = np.random.default_rng(42)
-    perm = rng.permutation(n)
-    n_train = int(round(0.9 * n))
-    train_idx = np.sort(perm[:n_train])
-    val_idx = np.sort(perm[n_train:])
-    for name, idx in ("train", train_idx), ("val", val_idx):
+    # Shared full-population assignments; metadata only, no waveform reads.
+    for name, idx in split_indices(n, seed=42, groups=groups).items():
         st_s = st[idx]
-        print(f"  {name} split size: {len(idx)} (train_fraction=0.9, seed=42)")
+        print(f"  {name} split size: {len(idx)} (train/val/test=0.8/0.1/0.1, seed=42)")
         for c in range(5):
             cnt = int((st_s == c).sum())
             print(f"    class {c}: {cnt}")
