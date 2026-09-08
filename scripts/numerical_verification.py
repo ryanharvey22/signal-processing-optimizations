@@ -34,6 +34,12 @@ def load_replay(directory, manifest, row_ids):
                           ("spec.json", "frozen_spec_sha256")):
         if digest(directory / filename) != meta[key]:
             raise ValueError(f"post-freeze replay checksum mismatch: {filename}")
+    frozen_spec = json.loads((directory / "spec.json").read_text(encoding="utf-8"))
+    source_sha = manifest.get("source_sha256", manifest.get("dataset", {}).get("source_sha256"))
+    if source_sha != frozen_spec["dataset"]["source_sha256"]:
+        raise ValueError("replay source dataset identity changed")
+    if "dataset" in manifest and manifest["dataset"] != frozen_spec["dataset"]:
+        raise ValueError("replay split manifest changed")
     expected_names = {name for name, row in manifest["models"].items()
                       if name != "latent" and row["kind"] != "waveform"}
     if set(meta["model_sha256"]) != expected_names:

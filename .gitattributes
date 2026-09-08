@@ -1,0 +1,3 @@
+
+# Frozen JSON manifests are byte-hashed; preserve their original line endings.
+/benchmarks/**/*.json -text
