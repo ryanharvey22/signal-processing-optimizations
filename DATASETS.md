@@ -137,3 +137,14 @@ from the actual data, not assumed to be 6,000 or 1,000.
 Each image is float32, shape `(1, 28, 28)`, with values in `[0, 1]`. The legacy
 MLP autoencoder flattens this to 784 elements. MNIST results do not validate the
 radar front end, nuisance handling, or matched-filter discrimination claims.
+
+## Optimized manifest terminology
+
+[The upstream RadChar release](https://github.com/abcxyzi/RadChar) consists of
+synthetic radar signals. RadChar results are not measurements on captured radar
+signals or evidence of deployed sensor performance. In the initial optimized
+manifest schema, the legacy synthetic Boolean distinguishes the local
+engineering fixture from externally loaded HDF5 data; false for RadChar does
+not mean physical measurements. The report states the dataset interpretation
+explicitly. The release uses 512 samples at 3.2 MHz (160 microseconds per frame);
+continuous operation at that rate requires separate end-to-end timing evidence.

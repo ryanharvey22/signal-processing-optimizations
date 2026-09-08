@@ -2,6 +2,12 @@
 
 **Goal:** Determine whether **latent-space discrimination** can beat or match classical waveform matching in **runtime** while keeping accuracy high. If latent matching cannot deliver a better speed/accuracy tradeoff, we should not use it.
 
+The [frozen RadChar benchmark](benchmarks/radchar/README.md) achieved **82.66%**
+accuracy versus **84.80%** for the strongest tested matched filter, using **53.1x
+fewer estimated arithmetic operations**. The accuracy goal was not met; no
+state-of-the-art superiority is claimed. Published artifacts include the selected
+weights, controls, uncertainty intervals, and architecture verification reports.
+
 ## Optimized embedded workflow
 
 The new comparison pipeline lives in `gcfcr/optimized/`. It provides NumPy-only

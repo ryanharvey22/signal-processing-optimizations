@@ -65,6 +65,16 @@ def assemble(experiments, out):
         "Some exploratory runs began before start snapshots were implemented and while source files changed. "
         "Their end snapshots are not exact training-source attestations. Frozen inference parameters and golden outputs are independently hashed."
     )
+    # Identical inherited artifacts are one measured control, while the selected
+    # encoder and its ablation retain their semantic roles even if bytes match.
+    seen = set()
+    unique = {}
+    for name, value in selection.items():
+        digest = value[1]["sha256"]
+        if digest not in seen or name in ("latent", "encoder_no_reconstruction"):
+            unique[name] = value
+            seen.add(digest)
+    selection = unique
     out.mkdir(parents=True)
     for name, (directory, row) in selection.items():
         source = directory / row["file"]

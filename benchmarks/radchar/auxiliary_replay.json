@@ -1,0 +1,72 @@
+{
+  "format": "post-freeze-auxiliary-score-replay-v1",
+  "purpose": "Numerical diagnostic captured after final test; not original evaluation scores or new model selection.",
+  "frozen_spec_sha256": "e4f0e0ec8907d8ba0b0751738b341d044c14cb258da0e2c49a47aaa96a1c5b4d",
+  "frozen_goldens_sha256": "d05700e2169d9e52e208323ae7392d3f51276d320e0442228baccb5c1c017924",
+  "original_bundle_sha256": "a0ddb10271c0fbf5872dd6fa029135970b1a5f0ccc5e52e0e6e27ddb28ac078b",
+  "scores_sha256": "585d5c1d273901231f01755a96a1efb19c15007c766a9202ead1130fe5c904cc",
+  "model_sha256": {
+    "encoder_candidate_0": "3d7276dcba81cbc2bd6942c567c046503426742e7cbbcbf1297e0cc566933f98",
+    "linear": "a91026736d1d9d7e244d944061c3e38a18d4097294872c426d01d183ec77c68e",
+    "classifier": "7456d593ac7ecaac426802893c0a235b1c390351f3f1a2676e21c7146722910c",
+    "spectral": "5f5f875570ba6eb17aa5ad3ae9d562b7178376d9d3777561b496079c04c07a5c",
+    "pca": "1ada026c31fe57309908e0b22b991ad61e0f90a351e68d928512c15b37110bd9",
+    "spectral_standardized": "3d9a8d340d3733bdcb0e820c87b0d7cee184873d9f1d854e1f66d156d9d96854",
+    "pca_standardized": "d127b8e5a8c9d0ebecbda2a682fa56789bcee1cf74c1d6792ab91f50a838b7f9",
+    "encoder_candidate_1": "4c50655f1ce90ffbdf96f9ba1d8f94e4dedc881250bd562ee17bb94af603d899",
+    "no_reconstruction_2": "489ca5d44a0295a0cdd85660bf3cde19a80c47d563e79fa7d1466185024bd18d",
+    "encoder_candidate_2": "eeee4dd0e0cbe0f6157f5588e816f3636c23fc0c6397ee0c5af15d1c84e49eb2",
+    "no_reconstruction_3": "7386545ec7556f6f757c24951a842a3b1f2cb0556e5c46625a5afe10a6b44cf7",
+    "encoder_candidate_3": "c1483799abf64706eaa674c9ae97411501fe63fd22d4400b1dafe7a93f0b0a82",
+    "no_reconstruction_4": "fc072dc4f21368a4d3d474ce1b65f44e074dbdefbb78005f21f27e4ffbf093e4",
+    "encoder_candidate_4": "6ea3a3a55e1f70abe4ab5d3ca1111bb774b597ae44c66373890d841ab58fff80",
+    "encoder_no_reconstruction": "69d085b3699e38aabdddd64cc8ce547261f66d4514d702993db3f7ff57bbe4e2"
+  },
+  "all_original_auxiliary_labels_reproduced": true,
+  "evaluation_order": "Original split order, then reordered by seed+991 permutation for bundle alignment",
+  "outer_chunk_size": 128,
+  "dtype": "float32",
+  "blas_threads": 1,
+  "rtol": 0.0003,
+  "atol": 3e-05,
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "processor": "AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD",
+    "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+    "numpy": "2.5.2",
+    "threadpools": [
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "filepath": "C:\\Users\\dalto\\source\\repos\\signal-processing-optimizations\\.venv\\Lib\\site-packages\\numpy.libs\\libscipy_openblas64_-327b2e0bcffce2882e0dc04cdeb4eaa6.dll",
+        "version": "0.3.34.0.0",
+        "threading_layer": "pthreads",
+        "architecture": "Haswell"
+      }
+    ],
+    "numpy_runtime": "[{'numpy_version': '2.5.2',\n  'python': '3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]',\n  'uname': uname_result(system='Windows', node='Fern', release='11', version='10.0.26200', machine='AMD64')},\n {'simd_extensions': {'baseline': ['X86_V2'],\n                      'found': ['X86_V3'],\n                      'not_found': []}},\n {'ignore_floating_point_errors_in_matmul': False},\n {'architecture': 'Haswell',\n  'filepath': 'C:\\\\Users\\\\dalto\\\\source\\\\repos\\\\signal-processing-optimizations\\\\.venv\\\\Lib\\\\site-packages\\\\numpy.libs\\\\libscipy_openblas64_-327b2e0bcffce2882e0dc04cdeb4eaa6.dll',\n  'internal_api': 'openblas',\n  'num_threads': 1,\n  'prefix': 'libscipy_openblas',\n  'threading_layer': 'pthreads',\n  'user_api': 'blas',\n  'version': '0.3.34.0.0'}]\n",
+    "pid": 38832
+  },
+  "code_snapshot": {
+    "files": {
+      "gcfcr\\optimized\\__init__.py": "b970f1478745fd05a1d12c07a352cce636d0220c8e69265c4382488554cab47e",
+      "gcfcr\\optimized\\api.py": "152236e1e17b466e21fe1cd80b647a149c73df12abac989bd38925896e0581af",
+      "gcfcr\\optimized\\autoencoder.py": "989a068377c5a3ab6ac3ce3b8b06fcbf22768b6eeca5c455b5deb1879d5ba5c9",
+      "gcfcr\\optimized\\baselines.py": "712334d22675b7ce5fb86e1a03d258fedae79e138fc85946ba84bcd0376a073c",
+      "gcfcr\\optimized\\classifier.py": "78cb5f8f8ca29f7cee1c37eafa9fb8266e051e3b3167034b42bb27fa25ed6b2d",
+      "gcfcr\\optimized\\coherent_autoencoder.py": "d17b329c1328ce0fa98bb894666bef594be6fee6f14dd3ae576be88805e6938f",
+      "gcfcr\\optimized\\conv_autoencoder.py": "4408b7c4c90d08433e95b5418ad6064e2aacd876f0d69b849a2ea1b70ddc7c8b",
+      "gcfcr\\optimized\\data.py": "19a8bf6f2217c3c089340837733827fdc6774956780c585a791b53727a8146ed",
+      "gcfcr\\optimized\\features.py": "6d5376cfd87b4dfd70af414043152ba842b18d9f693f1eea72576251497d4d5f",
+      "gcfcr\\optimized\\metrics.py": "bf4b6357e75e1e9d3b0d7f7a3239974ea6d43c05e5bf85c77681318b77b8d95e",
+      "scripts\\optimized_filter.py": "ae1e50e24070399ef13385b3e68f9c8460e950b2aa30e4597a436d29021b5d76"
+    },
+    "git_revision": "8caf041dc01326282ad66173fb5cc16f011b2486",
+    "working_tree_dirty": true
+  },
+  "generator_sha256": "a4bd3c272b56c20ff54ce1fc173f456801f76ca9964d0a5a9b8f93add11e7474",
+  "verification_sha256": "3ad7809b02f189ae751e0a7c9b71102e89e0193b0acc0c2c7dafa535f5bf533c"
+}

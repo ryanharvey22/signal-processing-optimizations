@@ -26,6 +26,7 @@ from gcfcr.optimized.baselines import WaveformMatchedFilter, FeaturePrototypeMat
 from gcfcr.optimized.classifier import FeatureClassifier, fit_classifier
 from gcfcr.optimized.data import load_experiment_data
 from gcfcr.optimized.metrics import classification_metrics, paired_accuracy_interval
+from numerical_verification import load_replay, scores_chunked, classes_for, verify_scores
 
 LOADERS = {"coherent": CoherentAutoencoder, "conv": ConvLatentAutoencoder, "latent": LatentAutoencoder, "waveform": WaveformMatchedFilter,
            "feature": FeaturePrototypeMatcher, "classifier": FeatureClassifier}
@@ -77,7 +78,8 @@ def load_models(directory, manifest):
     return result
 
 def code_snapshot():
-    files = sorted((ROOT / "gcfcr" / "optimized").glob("*.py")) + [Path(__file__).resolve()]
+    files = sorted((ROOT / "gcfcr" / "optimized").glob("*.py")) + [
+        Path(__file__).resolve(), Path(__file__).with_name("numerical_verification.py")]
     return {"files": {str(p.relative_to(ROOT)).replace("\\\\", "/"): sha256(p) for p in files},
             "git_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
             "working_tree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())}
@@ -330,15 +332,19 @@ def strengthen(args):
     write_json(directory / "validation_candidates.json", candidates)
     write_json(directory / "experiment.json", manifest)
 
-def create_bundle(directory, manifest, data, models):
+def create_bundle(directory, manifest, data, models, predictions=None, frozen_arrays=None):
     # Query payload is private experiment output, never committed as a dataset.
     order = np.random.default_rng(manifest["seed"] + 991).permutation(len(data.test))
     iq = data.test.iq[order]
     arrays = {"iq": iq, "y": data.test.y[order], "snr_db": data.test.snr_db[order],
               "row_ids": data.test.row_ids[order], "latent_codes": models["latent"].encode(iq[:64])}
     for name, model in models.items():
-        arrays[name + "_prediction"] = predict_chunked(model, iq)
+        arrays[name + "_prediction"] = predict_chunked(model, iq) if predictions is None else predictions[name][order]
         arrays[name + "_scores"] = model.scores(iq[:64])
+    if frozen_arrays is not None:
+        # Preserve original score/code references after validating rebuilt inference.
+        for key in frozen_arrays.files:
+            arrays[key] = frozen_arrays[key]
     query_path = directory / "queries.npz"
     np.savez_compressed(query_path, **arrays)
     bundle = {"format": "optimized-filter-native-bundle-v1", "models": manifest["models"],
@@ -377,13 +383,17 @@ def evaluate(args):
     primary = manifest["primary_comparator"]
     interval = paired_accuracy_interval(data.test.y, predictions["latent"], predictions[primary],
                                        groups=data.test.group_ids, seed=manifest["seed"])
-    report = {"dataset": manifest["dataset"], "results": results, "primary_comparator": primary,
+    report = {"dataset": manifest["dataset"], "evaluation_code_snapshot": code_snapshot(), "results": results, "primary_comparator": primary,
               "paired_accuracy_difference": interval,
               "matched_filter_accuracy_superiority_gate": interval["ci95"][0] > 0,
               "matched_filter_arithmetic_cost_gate": cost(models["latent"]) < cost(models[primary]),
               "native_latency_gate": "pending separate native measurements",
               "state_of_the_art_claim": False,
               "gate_scope": "only the strongest validation-selected matched-filter bank in this declared grid",
+              "dataset_interpretation": "Local synthetic engineering fixture, not a RadChar benchmark." if manifest["dataset"]["synthetic"] else (
+                  "RadChar-Tiny is the published synthetic radar dataset, not measured captures. "
+                  "The legacy dataset.synthetic field distinguishes this script's local engineering fixture from external HDF5 data."
+              ),
               "strongest_control_test_accuracy": max(row["accuracy"] for name, row in results.items() if name != "latent"),
               "latent_exceeds_all_controls_point_estimate": all(results["latent"]["accuracy"] > row["accuracy"]
                         for name, row in results.items() if name != "latent"),
@@ -396,7 +406,7 @@ def evaluate(args):
             data.test.y, predictions["latent"], predictions["encoder_no_reconstruction"],
             groups=data.test.group_ids, seed=manifest["seed"])
         report["ablation_scope"] = "fixed selected encoder architecture; paired row bootstrap; one training seed"
-    create_bundle(directory, manifest, data, models)
+    create_bundle(directory, manifest, data, models, predictions)
     write_json(directory / "test_report.json", report)
     print(json.dumps({name: value["accuracy"] for name, value in results.items()}), flush=True)
     print(json.dumps({"primary": primary, "paired_interval": interval,
@@ -427,14 +437,16 @@ def native(args):
     with np.load(directory / "queries.npz", allow_pickle=False) as d:
         iq = d["iq"]
         rows = {}
+        replay = load_replay(args.replay or directory, bundle, d["row_ids"])
         for name, model in models.items():
             np.testing.assert_allclose(model.scores(iq[:64]), d[name + "_scores"], rtol=3e-4, atol=3e-5)
-            predictions = predict_chunked(model, iq)
-            if not np.array_equal(predictions, d[name + "_prediction"]):
-                raise ValueError(f"{name}: native predictions differ from frozen golden results")
+            primary_check = name == "latent" or bundle["models"][name]["kind"] == "waveform"
+            predictions, parity = verify_scores(name, scores_chunked(model, iq), classes_for(model),
+                d[name + "_prediction"], d["row_ids"], replay.get(name), strict=primary_check)
             rows[name] = {"accuracy": float(np.mean(predictions == d["y"])),
+                "frozen_accuracy": float(np.mean(d[name + "_prediction"] == d["y"])),
                 "storage_bytes": model.storage_bytes, "operations": model.operation_counts(),
-                "golden_predictions_equal": True, "trials": []}
+                **parity, "trials": []}
         np.testing.assert_allclose(models["latent"].encode(iq[:64]), d["latent_codes"], rtol=3e-4, atol=3e-5)
     batch = iq[:min(args.batch_size, len(iq))]
     names = list(models)
@@ -468,6 +480,12 @@ def native(args):
     primary = bundle["primary_comparator"]
     result = {"environment": environment(), "bundle_sha256": sha256(directory / "bundle.json"),
               "queries_sha256": bundle["queries_sha256"], "results": rows, "trial_orders": orders,
+              "exact_primary_parity": all(row["golden_predictions_equal"] for name, row in rows.items()
+                  if name == "latent" or bundle["models"][name]["kind"] == "waveform"),
+              "all_predictions_exact": all(row["golden_predictions_equal"] for row in rows.values()),
+              "auxiliary_approximate_numeric_agreement": bool(replay),
+              "post_freeze_replay_metadata_sha256": sha256((args.replay or directory) / "auxiliary_replay.json") if replay else None,
+              "benchmark_code_snapshot": code_snapshot(),
               "primary_comparator": primary, "matched_filter_latency_gate":
               rows["latent"]["batch1_p50_us"] < rows[primary]["batch1_p50_us"],
               "measurement": "wall-clock input-IQ through prediction; warm caches; alternating 3 trials; includes Python/FFT/BLAS",
@@ -482,7 +500,10 @@ def freeze(args):
     manifest = json.loads((source / "experiment.json").read_text())
     if not (source / "test_report.json").exists():
         raise ValueError("evaluate selected models before freezing")
-    target.mkdir(parents=True, exist_ok=True)
+    if target.exists():
+        raise ValueError("choose a new freeze directory; published specifications are immutable")
+    load_models(source, manifest)
+    target.mkdir(parents=True)
     manifest["data_config"]["h5_path"] = None
     for name, row in manifest["models"].items():
         if row["kind"] != "waveform":
@@ -494,6 +515,8 @@ def freeze(args):
     manifest["frozen_goldens_sha256"] = sha256(target / "frozen_goldens.npz")
     write_json(target / "spec.json", manifest)
     shutil.copyfile(source / "test_report.json", target / "test_report.json")
+    if (source / "validation_candidates.json").exists():
+        shutil.copyfile(source / "validation_candidates.json", target / "validation_candidates.json")
 
 def rebuild(args):
     """Recreate only deterministic waveform references; never retrain or retune."""
@@ -522,12 +545,27 @@ def rebuild(args):
     frozen = args.spec / "frozen_goldens.npz"
     if sha256(frozen) != spec["frozen_goldens_sha256"]:
         raise ValueError("frozen evaluation reference checksum mismatch")
+    verified_predictions, replay_report = {}, {}
+    inverse_order = np.argsort(order)
+    replay = load_replay(args.spec, spec, data.test.row_ids[order])
     with np.load(frozen, allow_pickle=False) as golden:
         for name, model in models.items():
-            np.testing.assert_array_equal(predict_chunked(model, iq), golden[name + "_prediction"])
+            primary_check = name == "latent" or spec["models"][name]["kind"] == "waveform"
+            prediction, parity = verify_scores(name, scores_chunked(model, iq), classes_for(model),
+                golden[name + "_prediction"], data.test.row_ids[order], replay.get(name), strict=primary_check)
+            replay_report[name] = {**parity,
+                "native_accuracy": float(np.mean(prediction == data.test.y[order])),
+                "frozen_accuracy": float(np.mean(golden[name + "_prediction"] == data.test.y[order]))}
+            # Golden labels remain the original frozen evaluation, not this replay's labels.
+            verified_predictions[name] = golden[name + "_prediction"][inverse_order]
             np.testing.assert_allclose(model.scores(iq[:64]), golden[name + "_scores"], rtol=3e-4, atol=3e-5)
         np.testing.assert_allclose(models["latent"].encode(iq[:64]), golden["latent_codes"], rtol=3e-4, atol=3e-5)
-    create_bundle(target, spec, data, models)
+        create_bundle(target, spec, data, models, verified_predictions, golden)
+    if replay:
+        for filename in ("auxiliary_replay.json", "auxiliary_replay.npz", "frozen_goldens.npz", "spec.json"):
+            shutil.copyfile(args.spec / filename, target / filename)
+    write_json(target / "rebuild_verification.json", {"results": replay_report,
+        "original_golden_arrays_preserved": True, "code_snapshot": code_snapshot()})
     print(f"rebuilt frozen inference bundle at {target}", flush=True)
 
 def parser():
@@ -586,6 +624,7 @@ def parser():
     n = commands.add_parser("native")
     n.add_argument("--experiment", type=Path, required=True)
     n.add_argument("--output", type=Path, required=True)
+    n.add_argument("--replay", type=Path, help="Optional post-freeze auxiliary score supplement directory")
     n.add_argument("--repeats", type=int, default=300)
     n.add_argument("--warmup", type=int, default=30)
     n.add_argument("--batch-size", type=int, default=128)

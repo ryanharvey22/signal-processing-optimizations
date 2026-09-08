@@ -224,3 +224,73 @@ match the positive-weight candidate. Selecting the best zero-weight control
 across a wider latent/bank grid is a useful performance baseline but is not by
 itself that matched ablation. The current single-width/single-bank validation
 runs avoid this ambiguity. No reviewer test used the reserved real test split.
+
+## Guard and cache follow-up verification
+
+The test-start marker and inherited-source safeguards are implemented and were
+independently exercised with newly generated synthetic data. Forcing bundle
+creation to fail after predictions left a durable marker without a test report.
+Direct and inherited tuning guards, baseline strengthening, derived-model
+fitting, and comparison assembly all rejected further selection. An edited
+experiment manifest could not resume evaluation; restoring the identical
+manifest allowed recovery. No real test queries were used in this exercise.
+
+Composite provenance now records resolved source paths and checks existing
+source lineages. A separate fixture assembled unrelated sources A and B with B
+selected and no shared-base link. Starting test evaluation only in non-winning
+A correctly locked the composite. The checks prevent accidental local workflow
+reuse; they do not promise protection against deliberate deletion of provenance
+or sources that are no longer available on the filesystem.
+
+A controlled two-by-two latent-width/reference-bank selection fixture selected
+the positive candidate at width 4 and bank count 2, retained that exact zero-loss
+ablation, and separately retained the globally best zero-loss control at width 8
+and bank count 1. Inherited manifest hashes and snapshots matched their sources,
+all copied model artifacts reloaded, and a deliberately corrupted inherited
+artifact was rejected before training. These injected selection scores test the
+workflow only and are not classification-performance evidence.
+
+| ID | Finding | Required correction | Status |
+| --- | --- | --- | --- |
+| CR-11 | Coherent inference used an initialization-only expanded kernel cache, while public complex coefficient arrays remained mutable. Zeroing those arrays left current inference unchanged but changed save/reload latent outputs by up to 0.0833407. | Prevent unsupported coefficient mutation or synchronize the cache without adding avoidable per-query work. | Fixed: coefficient arrays reject in-place writes and attribute replacement; an explicit replacement model rebuilds the cache. |
+
+Independent cache retests rejected scalar writes, fill operations, and attribute
+replacement. Constructing a replacement model and replacing reference banks
+still worked, preserved the original instance, and saved/reloaded consistently.
+The demonstrated coherent cache divergence is closed.
+
+## Frozen test result and auxiliary numerical disagreement
+
+The test split has now been evaluated and frozen; no further model tuning was
+performed in this review. The selected coherent encoder scored 82.66% against
+84.80% for the validation-selected FFT matched filter. Their paired accuracy
+difference is -2.14 percentage points, with the reported row-bootstrap 95%
+interval [-3.06, -1.22] percentage points. Estimated ordinary arithmetic is
+2,666,832 versus 141,580,800 operations per query. The accuracy-superiority gate
+is false: the original objective of beating both accuracy and cost is not met.
+The bootstrap does not model unrecorded dependence in this release.
+
+A read-only audit of spectral_standardized found one native prediction
+mismatch among 5,000 frozen queries. Query 2081 is source row 37180, true class 3,
+SNR -18 dB. Its frozen prediction is 3; reordered batch-128 inference predicts 1.
+The current scores of classes 1 and 3 are exactly tied at 0.6612148881. Replaying
+batch-128 inference in the original source-row order reproduces all 5,000 frozen
+labels, with class 3 leading class 1 on this row by 1.1920929e-7. Float64 matching
+from the same float32 frontend also favors class 3, by approximately 1.93368e-7.
+
+The first 64 frozen score vectors reproduce exactly. Across all rows, the
+maximum score change between original and reordered batch inference is
+6.55651e-7. Batch sizes 1, 16, and 32 reproduce all labels; 64, 128, and 256 yield
+the single tie-related flip. Model and query hashes were checked before this
+audit. This evidence identifies batch-dependent rounding at an almost tied
+auxiliary decision; no frozen parameters or test reports were changed.
+
+The review recommendation is to preserve exact prediction requirements for the
+selected encoder and both waveform matched-filter controls. Auxiliary mismatch
+diagnostics should retain exact_predictions_equal=false, list the affected
+rows and score margins, and report measured native accuracy separately from
+frozen accuracy. A near-tie diagnostic is not proof of exact architecture parity.
+A criterion using current scores alone can hide semantic drift that collapses
+scores into ties; the original artifact contains only 64 full score vectors.
+Any additional score replay reference must be separately identified and must
+not rewrite the original predictions, results, or their provenance.

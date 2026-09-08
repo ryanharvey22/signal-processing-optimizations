@@ -26,7 +26,8 @@ static int shape_valid(const ogae_model *m) {
             !m->coherent_channels || m->coherent_channels > 256 ||
             m->coherent_kernel < 3 || m->coherent_kernel > 65 || !(m->coherent_kernel & 1u) ||
             !m->coherent_real || !m->coherent_imag || !m->power_gain || !m->power_bias) return 0;
-    } else return 0;    for (layer = 0; layer < m->conv_layers; ++layer)
+    } else return 0;
+    for (layer = 0; layer < m->conv_layers; ++layer)
         if (!m->conv_channels[layer] || m->conv_channels[layer] > 256 || !m->conv_weights[layer] || !m->conv_biases[layer])
             return 0;
     return 1;
@@ -143,13 +144,12 @@ static int affine(const float *input, unsigned inputs, float *output, unsigned o
     return 1;
 }
 
-static ogae_status finish(const ogae_model *m, float *latent, float *scores, int64_t *label) {
+/* Shared bank traversal keeps full-IQ and already-encoded queries identical.
+ * Bank codes are immutable; strict comparisons retain the first sorted class
+ * on equal scores, including the all-zero query produced by a zero encoder. */
+static ogae_status match_normalized(const ogae_model *m, const float *latent,
+                                     float *scores, int64_t *label) {
     unsigned index, best = 0;
-    float norm = 0.0f;
-    for (index = 0; index < m->latent; ++index) norm += latent[index] * latent[index];
-    if (!isfinite(norm)) return OGAE_NUMERIC_ERROR;
-    norm = sqrtf(norm);
-    for (index = 0; index < m->latent; ++index) latent[index] = norm > 1e-12f ? latent[index] / norm : 0.0f;
     for (index = 0; index < m->classes; ++index) scores[index] = -FLT_MAX;
     for (index = 0; index < m->references; ++index) {
         unsigned component, c = m->reference_classes[index];
@@ -163,6 +163,23 @@ static ogae_status finish(const ogae_model *m, float *latent, float *scores, int
     for (index = 1; index < m->classes; ++index) if (scores[index] > scores[best]) best = index;
     *label = m->class_labels[best];
     return OGAE_OK;
+}
+
+ogae_status ogae_match_codes(const ogae_model *m, const float *normalized_code,
+                             float *scores, int64_t *label) {
+    if (!shape_valid(m) || !normalized_code || !scores || !label) return OGAE_INVALID_ARGUMENT;
+    if (!finite_array(normalized_code, m->latent)) return OGAE_NUMERIC_ERROR;
+    return match_normalized(m, normalized_code, scores, label);
+}
+
+static ogae_status finish(const ogae_model *m, float *latent, float *scores, int64_t *label) {
+    unsigned index;
+    float norm = 0.0f;
+    for (index = 0; index < m->latent; ++index) norm += latent[index] * latent[index];
+    if (!isfinite(norm)) return OGAE_NUMERIC_ERROR;
+    norm = sqrtf(norm);
+    for (index = 0; index < m->latent; ++index) latent[index] = norm > 1e-12f ? latent[index] / norm : 0.0f;
+    return match_normalized(m, latent, scores, label);
 }
 
 static int temporal_frontend(const float *iq, unsigned n, float *features, ogae_conv_frontend kind) {

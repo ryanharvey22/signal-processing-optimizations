@@ -85,6 +85,20 @@ ogae_status ogae_predict(const ogae_model *model, const float *iq_interleaved,
                          float *workspace, size_t workspace_floats,
                          float *class_scores, int64_t *label);
 
+/* Match one already-encoded query against this model's immutable reference bank.
+ * normalized_code has model->latent finite float elements from the same frozen
+ * encoder, already unit-normalized (the encoder's all-zero code is also valid).
+ * This function neither normalizes nor mutates the query and needs no workspace.
+ * Validate the complete model once with ogae_validate_model at initialization;
+ * sorted class labels, complete class coverage and unit reference codes are the
+ * same contracts as ogae_predict. Stable score ties select the first class.
+ * Query, class_scores[model->classes], label and model arrays must not overlap.
+ * Nonfinite query values or dot-product overflow return OGAE_NUMERIC_ERROR;
+ * on any error discard output buffers, which may have been partially written.
+ */
+ogae_status ogae_match_codes(const ogae_model *model, const float *normalized_code,
+                             float *class_scores, int64_t *label);
+
 /* Matched-filter control with train-only unit-energy complex reference frames.
  * Samples are interleaved Re/Im; score is |Hermitian dot| / query norm, with
  * per-class maximum and stable first-label ties. This is aligned correlation,

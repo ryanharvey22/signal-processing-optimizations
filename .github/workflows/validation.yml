@@ -26,11 +26,17 @@ jobs:
           python scripts/optimized_filter.py fit --out artifacts/smoke --epochs 3 --hidden-dims 16 --latent-dims 8 --prototype-counts 1 --mf-bank-counts 1 4 --train-cap 600 --val-cap 100 --test-cap 100 --synthetic-total 1000
           python scripts/optimized_filter.py fit-coherent --base-experiment artifacts/smoke --out artifacts/selected-smoke --complex-channels 16 --kernel-size 65 --channels 12 16 16 16 16 --epochs 3 --reconstruction-weights 0.01 0
           python scripts/optimized_filter.py evaluate --experiment artifacts/selected-smoke
-          python scripts/export_embedded.py --model artifacts/selected-smoke/latent.npz --output artifacts/generated/ogae_model.h --golden-output artifacts/generated/ogae_golden.h --golden-iq artifacts/selected-smoke/queries.npz --cases 8
+      - name: Rebuild published frozen RadChar benchmark without training
+        run: |
+          python scripts/fetch_radchar_tiny.py --output artifacts/data/RadChar-Tiny.h5
+          python scripts/optimized_filter.py rebuild --spec benchmarks/radchar --h5 artifacts/data/RadChar-Tiny.h5 --out artifacts/radchar
+          python scripts/export_embedded.py --model artifacts/radchar/latent.npz --output artifacts/generated/ogae_model.h --golden-output artifacts/generated/ogae_golden.h --golden-iq artifacts/radchar/queries.npz --cases 8
       - uses: actions/upload-artifact@v4
         with:
           name: shared-frozen-fixture
-          path: artifacts/
+          path: |
+            artifacts/radchar/
+            artifacts/generated/
           retention-days: 7
   native:
     needs: prepare
@@ -51,13 +57,14 @@ jobs:
           name: shared-frozen-fixture
           path: artifacts
       - name: Same weights, references and golden queries on each CPU
-        run: python scripts/optimized_filter.py native --experiment artifacts/selected-smoke --output native-results.json --repeats 100
+        run: python scripts/optimized_filter.py native --experiment artifacts/radchar --output native-results.json --repeats 100
       - name: Compiled allocation-free C parity
         run: |
           cc -std=c99 -O3 -Wall -Wextra -Werror -pedantic -Iembedded -Iartifacts/generated embedded/ogae.c embedded/test_inference.c -lm -o parity
           ./parity
           cc -std=c99 -O3 -Wall -Wextra -Werror -pedantic -Iembedded -Iartifacts/generated embedded/ogae.c embedded/benchmark_native.c -lm -o benchmark-native
           ./benchmark-native 1000 > native-c-results.json
+          python scripts/record_native_c.py --results native-c-results.json --experiment artifacts/radchar --generated artifacts/generated --binary benchmark-native
           python -m json.tool native-c-results.json
           if ./benchmark-native 0; then exit 1; fi
       - uses: actions/upload-artifact@v4

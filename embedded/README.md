@@ -16,6 +16,24 @@ The spectral representation discards waveform phase, amplitude and circular alig
 
 The C API is in `ogae.h`. Keep input, workspace, scores, and label buffers disjoint. The model is immutable and can be shared across callers; each concurrent caller needs its own workspace. Run `ogae_validate_model` at initialization, then call `ogae_predict`. A caller-supplied custom descriptor must provide valid FFT twiddles and normalized reference codes; startup validation checks array finiteness, dimensions and class mapping, not those numerical semantics. Nonfinite inputs, insufficient workspace and arithmetic overflow return explicit errors.
 
+## Match already-encoded queries
+
+`ogae_match_codes(model, normalized_code, class_scores, &label)` performs only
+the reference-bank comparison for one code from the same frozen encoder. The
+query has `model->latent` float elements and must already be normalized; the
+encoder's all-zero output is also accepted. The function treats the query as
+read-only, does not renormalize it, allocates nothing and requires no workspace.
+It returns the same per-class maximum scores and label as the matching stage of
+`ogae_predict`, with stable ties choosing the first sorted class label.
+
+Validate the exported model once at startup. Keep the code, score output, label
+and model storage disjoint. Nonfinite code elements and dot-product overflow
+return `OGAE_NUMERIC_ERROR`; discard outputs on failure. A code from a different
+encoder or preprocessing version is incompatible even when its length matches.
+The shared C parity harness checks every exported golden code against its scores
+and label, plus zero/tie behavior, read-only input, invalid pointers and numerical
+errors. This interface is useful when encoding happened upstream; report its
+latency separately from complete raw-IQ inference.
 ## Export and native functional checks
 
 Run from the repository root, substituting the trained artifact path:
