@@ -14,8 +14,8 @@ remain separate from code correctness.
 | CR-03 | Medium | FeatureClassifier.operation_counts(96) raised a TypeError because an unavailable FFT estimate was added to integers. | Preserve an explicit unavailable estimate or raise a documented unsupported-estimate error. | Fixed; independent retest returns an explicit unavailable estimate. |
 | CR-04 | High for statistical claims | A paired bootstrap with all rows in one group returned [1, 1] as its confidence interval and reported one independent unit. Such a degenerate empirical bootstrap does not establish population superiority. | Require at least two independent units and disclose the limitations of small group counts. | Fixed; independent direct reproduction now rejects the invalid input. |
 | CR-05 | Medium | Raw-bank normalization could overflow a finite complex64 training waveform and silently produce zero references. | Use stable scaling or reject amplitudes outside a documented finite arithmetic domain, in both fitting and prediction. | Fixed by an explicit safe-domain check; reviewer independently confirmed both aligned and FFT matchers reject 1e20 inputs and accept empty query batches. |
-| CR-06 | Medium | The initial native benchmark measured all methods in a single fixed sequence. | Alternate or randomize method order across repeated trials; report latency and throughput separately. | Fix in progress; independent retest pending. |
-| CR-07 | High for reproducibility claims | The initial freeze/rebuild flow recreated golden predictions using the current preprocessing code. A shared semantic change could pass architecture parity while differing from the original test evaluation. | Bind source/frontend identity and retain frozen prediction or numerical fingerprints for comparison with rebuilt artifacts. | Fix in progress; independent retest pending. |
+| CR-06 | Medium | The initial native benchmark measured all methods in a single fixed sequence. | Alternate or randomize method order across repeated trials; report latency and throughput separately. | Fixed; independently exercised with disposable synthetic review data. |
+| CR-07 | High for reproducibility claims | The initial freeze/rebuild flow recreated golden predictions using the current preprocessing code. A shared semantic change could pass architecture parity while differing from the original test evaluation. | Bind source/frontend identity and retain frozen prediction or numerical fingerprints for comparison with rebuilt artifacts. | Fixed; independently exercised with disposable synthetic review data. |
 
 These cases were found using small direct reproductions rather than inferred
 from hypothetical inputs. Numerical rejection is an acceptable documented
@@ -68,7 +68,76 @@ parity result or a microcontroller timing result.
 
 ## Review disposition
 
-**Changes requested.** Close each concrete finding with a focused regression
-check. Then review the frozen test and architecture reports without promoting
-engineering correctness into a state-of-the-art or universal matched-filter
-claim. Update this log with retest evidence as findings are resolved.
+All seven reproduced findings above are corrected and independently retested. This closes those specific findings, not the research acceptance gates. The revised phase-local convolutional candidate still requires implementation review, frozen test evaluation, and architecture evidence.
+
+## Follow-up verification and convolutional design review
+
+The reviewer independently exercised three alternating native benchmark trials
+on disposable synthetic data. The recorded second method order reversed the
+first and each method produced three trials. A freeze/rebuild round trip
+preserved predictions. Deliberately changing the candidate prediction function
+then caused rebuild to fail before publishing its inference bundle. No reserved
+real test queries were evaluated in this review exercise.
+
+The next candidate uses power and adjacent complex products to retain local
+phase information. The review required an explicit circular boundary rule,
+global-phase invariance without claiming carrier-offset invariance, and a full
+operation count of roughly 250,880 convolution MACs for three kernel-5,
+stride-2 stages at length 512. MACs are not FLOPs.
+
+A concrete export trap was raised: folding input mean subtraction into a
+zero-padded convolution changes boundary behavior. The design instead uses no
+input train-mean subtraction and folds a following BatchNorm into the preceding
+convolution using evaluation running statistics, which is boundary-safe. Numeric
+Torch-evaluation versus exported-runtime parity must still test boundaries.
+
+Three such stages have a 29-sample receptive field; RadChar pulses can be longer.
+A fourth same-width stage would reach 61 samples at an additional 40,960 MACs.
+This is a validation candidate if confusion patterns justify it, not a claim that
+more layers necessarily improve accuracy. Circular striding also does not
+provide exact invariance to every input shift.
+## Second convolutional audit
+
+The revised convolutional implementation was reviewed before the reserved real
+test set was evaluated. The following new reproductions and modeling constraints
+were sent to the implementation team:
+
+| ID | Finding | Required correction | Status |
+| --- | --- | --- | --- |
+| CR-08 | A negative infinite intermediate affine/convolution result was clamped to zero by ReLU, allowing a later finite latent code. The C implementation rejects before activation, so Python and C disagreed. | Check each preactivation for finite values before ReLU, in all encoder/classifier paths. | Fixed; negative-overflow reproductions now reject in convolutional, dense, and direct-classifier paths. |
+| CR-09 | Torch normalization maps [1e-14, 0] to approximately [0.01, 0], while deployed NumPy normalization maps it to zero. Renormalizing the Torch reference then creates a unit prototype absent from deployed training codes. | Apply the same hard-zero normalization rule when constructing training-reference codes and during deployment. | Fixed: unnormalized Torch projections now pass through the same NumPy normalizer as deployed codes. |
+| CR-10 | After the supported public mutation chunk_size = -1, encode loops execute zero iterations and return uninitialized np.empty latent outputs. | Validate chunk_size at use or through a validated setter; reject invalid mutations. | Fixed; independent zero/negative mutation checks now reject before producing output. |
+
+The initial phase-local reconstruction loss also asked a shift-invariant pooled
+code to reconstruct position-dependent sequences. Identically encoded shifted
+inputs cannot both be reconstructed at their original absolute positions.
+Reconstructing a shift-invariant pooled spectrum instead resolves that specific
+symmetry conflict, while remaining a lossy cross-feature reconstruction task.
+An otherwise identical zero-reconstruction ablation is needed before crediting
+the reconstruction objective with a classification benefit. A decoder that does
+not train must not supply the epoch-selection tie breaker for that control.
+
+The same-backbone direct-classifier control is scientifically relevant after
+changing from a spectral MLP to a temporal convolutional encoder. A comparison
+with only the old spectral classifier would confound the frontend, backbone,
+and training objective.
+
+If raw IQ plus power becomes a separate frontend candidate, its semantic kind
+and version must be stored in the artifact and passed through C export. Both
+raw and phase-local variants have three channels; their shapes cannot identify
+their meaning. Raw IQ does not inherit analytic global-phase invariance.
+
+The updated suite completed with **31 passed, one skipped in 5.34 seconds**.
+The skip still reflects the absence of a local C compiler. A separate independent
+comparison constructed four Torch convolution/BatchNorm/ReLU stages with
+nontrivial running statistics and a pooled projection. Folded NumPy inference
+matched on zero frames, a last-sample impulse, and random frames for both saved
+frontends: maximum latent absolute errors were 1.34e-7 for temporal features and
+1.19e-7 for raw IQ plus power, below the 4e-6 check tolerance. This is complete
+Python-network parity evidence; it is not compiled C or MCU timing evidence.
+
+The invariant spectral reconstruction target, zero-weight control, consistent
+first-best-validation-epoch selection, and explicit saved frontend selector are
+now implemented. Their classification benefit remains an empirical question for
+the frozen evaluation and matched controls. The original phase-local candidate
+and the raw-IQ variant must retain separate invariance claims.

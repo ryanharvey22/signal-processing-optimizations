@@ -11,6 +11,7 @@ import unittest
 import numpy as np
 
 from gcfcr.optimized.autoencoder import LatentAutoencoder
+from gcfcr.optimized.conv_autoencoder import ConvLatentAutoencoder
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("export_embedded", ROOT / "scripts/export_embedded.py")
@@ -27,6 +28,13 @@ def model(hidden: int = 48) -> LatentAutoencoder:
     codes = rng.normal(size=(5, 16)).astype(np.float32)
     return LatentAutoencoder(weights, biases, codes, np.array([0, 1, 2, 3, 4]))
 
+
+def conv_model(channels=(12, 16, 16, 16), frontend="temporal") -> ConvLatentAutoencoder:
+    rng = np.random.default_rng(415)
+    widths = [3, *channels]
+    weights = tuple(rng.normal(0, 0.07, (out, inp, 5)).astype(np.float32) for inp, out in zip(widths, widths[1:]))
+    biases = tuple(rng.normal(0, 0.04, out).astype(np.float32) for out in channels)
+    return ConvLatentAutoencoder(weights, biases, rng.normal(0, 0.1, (16, 2 * channels[-1])), rng.normal(0, 0.1, 16), rng.normal(size=(5, 16)), np.arange(5), frontend=frontend)
 
 class EmbeddedTests(unittest.TestCase):
     def test_export_memory_and_immutable_tables(self):
@@ -47,12 +55,25 @@ class EmbeddedTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 EXPORT.export_model(model(), target, samples=256)
 
+    def test_convolution_export_exact_ping_pong_workspace(self):
+        for channels, expected in (((12, 16, 16, 16), 26816), ((16, 2, 2, 128), 40000)):
+            for frontend, enum in (("temporal", "OGAE_LOCAL_PRODUCTS"), ("iq", "OGAE_NORMALIZED_IQ")):
+                with tempfile.TemporaryDirectory() as directory:
+                    path = Path(directory) / "ogae_model.h"
+                    candidate = conv_model(channels, frontend)
+                    report = EXPORT.export_model(candidate, path)
+                    self.assertEqual(report["workspace_bytes"], expected)
+                    self.assertIn(enum, path.read_text())
+                    self.assertNotIn("twiddle_real[", path.read_text())
+                    self.assertEqual(report["extra_pointer_table_entries"], 8)
+                    EXPORT.export_golden(candidate, EXPORT.diagnostic_iq(8), Path(directory) / "ogae_golden.h")
+
     @unittest.skipUnless(COMPILER, "native C compiler is required for embedded kernel parity")
     def test_c99_matches_numpy_for_linear_and_hidden_encoders(self):
-        for hidden in (0, 48):
-            with self.subTest(hidden=hidden), tempfile.TemporaryDirectory() as directory:
+        candidates = [model(0), model(48), conv_model((12, 16, 16)), conv_model(), conv_model(frontend="iq"), conv_model((16, 2, 2, 128)), conv_model((4, 6, 6, 6, 6, 6, 6), frontend="iq")]
+        for index, candidate in enumerate(candidates):
+            with self.subTest(model=index), tempfile.TemporaryDirectory() as directory:
                 directory = Path(directory)
-                candidate = model(hidden)
                 refs = EXPORT.diagnostic_iq(5)
                 labels = np.arange(5)
                 EXPORT.export_model(candidate, directory / "ogae_model.h", aligned_iq=refs, aligned_labels=labels)

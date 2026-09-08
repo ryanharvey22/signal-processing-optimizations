@@ -2,6 +2,70 @@
 
 **Goal:** Determine whether **latent-space discrimination** can beat or match classical waveform matching in **runtime** while keeping accuracy high. If latent matching cannot deliver a better speed/accuracy tradeoff, we should not use it.
 
+## Optimized embedded workflow
+
+The new comparison pipeline lives in `gcfcr/optimized/`. It provides NumPy-only
+inference, optional PyTorch training, train-only latent prototype banks, and an
+allocation-free C99 export for x86-64, AArch64, Cortex-M4F, M7, and M33 builds.
+No intrinsics are used. The decoder runs only during training.
+
+Use [the comparison scope](docs/COMPARISON_SCOPE.md) and
+[independent review protocol](REVIEW_PROTOCOL.md) when interpreting accuracy.
+Cortex-M functional emulation and compilation do not measure physical-board
+latency, energy, or interrupt-time behavior. A programmable sensor-host MCU is
+different from an IMU's vendor-defined state machine or machine-learning block.
+
+```bash
+python -m pip install -r requirements-optimized.txt
+# Training and tests only:
+python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+python -m pip install pytest
+python scripts/fetch_radchar_tiny.py
+python scripts/optimized_filter.py fit --h5 data/radchar/RadChar-Tiny.h5 --out experiments/spectral --mf-bank-counts 1 4 16 64
+python scripts/optimized_filter.py strengthen --experiment experiments/spectral --mf-bank-counts 256 1024
+python scripts/optimized_filter.py fit-conv --base-experiment experiments/spectral --out experiments/coherent --frontend iq --channels 12 16 16 16 16 16 --epochs 60
+# Freeze all choices before opening test results:
+python scripts/optimized_filter.py evaluate --experiment experiments/coherent
+python scripts/optimized_filter.py native --experiment experiments/coherent --output experiments/native.json
+python scripts/export_embedded.py --model experiments/coherent/latent.npz --output build/generated/ogae_model.h
+```
+
+`fit-conv` compares a spectral-reconstruction auxiliary loss with the same
+encoder and matching bank trained with zero reconstruction loss. Its `iq`
+frontend preserves coherent I/Q; the alternative `temporal` frontend uses
+normalized power and adjacent complex products. Neither decoder reconstructs
+the original IQ waveform. The spectral MLP remains available as a smaller,
+cheaper alternative. Validation history retains all candidates and controls.
+
+The source dataset and split memberships are hashed. The full population is
+split before caps are applied, so training, validation, and test rows remain
+disjoint. No test data are used to choose the encoder, references, or epoch.
+Reproducing a frozen benchmark checks saved predictions, scores, and latent
+codes before creating an architecture benchmark bundle.
+
+```python
+from gcfcr.optimized import load_model, with_reference_codes
+
+model = load_model("experiments/coherent/latent.npz")
+codes = model.encode(iq_frames)       # complex64 array: (frames, 512)
+scores = model.match_codes(codes)    # columns follow model.classes
+labels = model.predict(iq_frames)
+
+# Reference codes must come from this same frozen encoder/frontend.
+custom = with_reference_codes(model, reference_codes, reference_labels,
+                              prototypes_per_class=4)
+custom.save("custom_signal_set.npz")
+```
+
+C inference uses caller-owned workspace and constant flash tables. See
+[embedded integration](embedded/README.md) for sizing, compiler flags, numerical
+parity, and physical-board cycle measurements. Python chunks intermediate
+activations but retains the returned output array; the C path performs no heap
+allocations.
+
+The earlier experiment scripts remain below for continuity; the optimized
+workflow above is the controlled comparison and deployment path.
+
 ## Docs
 
 | File | Contents |

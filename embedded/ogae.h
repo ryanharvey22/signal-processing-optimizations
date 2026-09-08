@@ -21,9 +21,12 @@ typedef enum {
     OGAE_NUMERIC_ERROR = -3
 } ogae_status;
 
+typedef enum { OGAE_SPECTRAL = 0, OGAE_TEMPORAL_CONV = 1 } ogae_model_kind;
+typedef enum { OGAE_LOCAL_PRODUCTS = 0, OGAE_NORMALIZED_IQ = 1 } ogae_conv_frontend;
+
 typedef struct {
     uint16_t samples;       /* Power of two, currently exporter fixes 512. */
-    uint16_t features;      /* Must divide samples. */
+    uint16_t features;      /* Spectral bins, or 3*samples for temporal features. */
     uint16_t hidden;        /* Zero selects a single affine encoder. */
     uint16_t latent;
     uint16_t references;
@@ -37,10 +40,19 @@ typedef struct {
     const int64_t *class_labels;       /* Sorted original labels. */
     const float *twiddle_real;         /* samples / 2 FFT twiddles. */
     const float *twiddle_imag;
+    ogae_model_kind kind;   /* Zero preserves existing spectral initializers. */
+    ogae_conv_frontend conv_frontend;
+    uint16_t conv_layers;   /* Temporal kind: three to seven k5/stride2 layers. */
+    const uint16_t *conv_channels;
+    const float * const *conv_weights; /* Output-channel, input-channel, tap. */
+    const float * const *conv_biases;
+    /* Temporal kind uses weight0/bias0 for the pooled projection, and no FFT. */
 } ogae_model;
 
 /* Zero means invalid dimensions. Bytes = returned count * sizeof(float).
- * The exact count is 2*samples + features + hidden + latent floats.
+ * Spectral: 2*samples + features + hidden + latent floats.
+ * Temporal: features + largest odd-stage output + largest even-stage output
+ *           + 2*last_conv_channels + latent. Retains frontend for debug parity.
  */
 size_t ogae_workspace_floats(const ogae_model *model);
 
@@ -51,7 +63,8 @@ size_t ogae_workspace_floats(const ogae_model *model);
  */
 ogae_status ogae_validate_model(const ogae_model *model);
 
-/* Full raw IQ -> FFT/log-power features -> encoder -> latent matching.
+/* Full raw IQ -> selected frontend/encoder -> latent matching.
+ * Spectral uses FFT/log-power; temporal uses local IQ features/circular conv.
  * iq_interleaved: 2*samples floats in Re,Im,Re,Im order.
  * class_scores: classes floats; label receives an original class label.
  * No allocation, mutable global state, runtime sin/cos, or decoder is used.

@@ -170,6 +170,8 @@ class LatentAutoencoder:
             raise ValueError(f"features must have width {self.input_dim}")
         for index, (weight, bias) in enumerate(zip(self.weights, self.biases)):
             x = x @ weight.T + bias
+            if not np.isfinite(x).all():
+                raise ValueError("encoder affine overflowed before activation")
             if index + 1 < len(self.weights):
                 np.maximum(x, 0, out=x)
         if not np.isfinite(x).all():

@@ -91,6 +91,12 @@ class DeploymentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             model.encode_features(np.full((1, 2), np.nan, np.float32))
 
+    def test_pre_relu_overflow_is_not_masked(self):
+        for sign in (-1, 1):
+            model = LatentAutoencoder((np.full((1, 2), sign * 1e38, np.float32), np.ones((2, 1), np.float32)), (np.zeros(1), np.ones(2)), np.eye(2), np.array([0, 1]))
+            with np.errstate(over="ignore", invalid="ignore"), self.assertRaises(ValueError):
+                model.encode_features(np.full((1, 2), 10, np.float32))
+
     def test_invalid_weights_bank(self):
         with self.assertRaises(ValueError):
             LatentAutoencoder((np.eye(2),), (np.zeros(3),), np.eye(2), np.array([0, 1]))

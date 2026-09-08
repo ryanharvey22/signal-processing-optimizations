@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gcfcr.optimized.autoencoder import LatentAutoencoder
+from gcfcr.optimized.conv_autoencoder import ConvLatentAutoencoder, temporal_features
 from gcfcr.optimized.features import spectral_features
 
 
@@ -63,48 +64,75 @@ def _aligned_bank(model: LatentAutoencoder, iq: np.ndarray | None, labels: np.nd
     compact = np.searchsorted(model.classes, labels).astype(np.uint16)
     return normalized, compact
 
-def export_model(model: LatentAutoencoder, output: Path, *, symbol: str = "ogae_exported", samples: int = 512, aligned_iq: np.ndarray | None = None, aligned_labels: np.ndarray | None = None) -> dict:
+def export_model(model: LatentAutoencoder | ConvLatentAutoencoder, output: Path, *, symbol: str = "ogae_exported", samples: int = 512, aligned_iq: np.ndarray | None = None, aligned_labels: np.ndarray | None = None) -> dict:
     symbol = _symbol(symbol)
     if samples != 512:
         raise ValueError("embedded exporter currently supports 512-sample IQ frames")
-    hidden = model.weights[0].shape[0] if len(model.weights) == 2 else 0
-    dimensions = (samples, model.input_dim, hidden, model.latent_dim, len(model.prototypes), len(model.classes))
-    if any(value < 0 or value > 65535 for value in dimensions) or samples % model.input_dim:
+    convolution = isinstance(model, ConvLatentAutoencoder)
+    hidden = 0 if convolution else (model.weights[0].shape[0] if len(model.weights) == 2 else 0)
+    features = 3 * samples if convolution else model.input_dim
+    dimensions = (samples, features, hidden, model.latent_dim, len(model.prototypes), len(model.classes))
+    if any(value < 0 or value > 65535 for value in dimensions) or (not convolution and samples % features):
         raise ValueError("model dimensions do not fit the embedded descriptor")
     prefix = symbol.upper()
-    angles = -2 * np.pi * np.arange(samples // 2) / samples
-    twiddle_real = np.cos(angles).astype(np.float32)
-    twiddle_imag = np.sin(angles).astype(np.float32)
     reference_classes = np.searchsorted(model.classes, model.prototype_labels).astype(np.uint16)
-    workspace_floats = 2 * samples + model.input_dim + hidden + model.latent_dim
-    arrays = [(f"{symbol}_weight0", model.weights[0], "float"), (f"{symbol}_bias0", model.biases[0], "float")]
-    if hidden:
-        arrays += [(f"{symbol}_weight1", model.weights[1], "float"), (f"{symbol}_bias1", model.biases[1], "float")]
-    arrays += [(f"{symbol}_codes", model.prototypes, "float"), (f"{symbol}_reference_classes", reference_classes, "uint16_t"), (f"{symbol}_class_labels", model.classes, "int64_t"), (f"{symbol}_twiddle_real", twiddle_real, "float"), (f"{symbol}_twiddle_imag", twiddle_imag, "float")]
+    pointer_tables = []
+    extra_fields = []
+    if convolution:
+        channels = [len(weight) for weight in model.conv_weights]
+        if any(channel > 256 for channel in channels):
+            raise ValueError("embedded convolution supports at most 256 channels per stage")
+        stage_sizes = [(samples >> (index + 1)) * channel for index, channel in enumerate(channels)]
+        odd, even = max(stage_sizes[::2]), max(stage_sizes[1::2])
+        workspace_floats = features + odd + even + 2 * channels[-1] + model.latent_dim
+        arrays = [(f"{symbol}_weight0", model.projection_weight, "float"), (f"{symbol}_bias0", model.projection_bias, "float"), (f"{symbol}_conv_channels", np.asarray(channels, np.uint16), "uint16_t")]
+        for index, (weight, bias) in enumerate(zip(model.conv_weights, model.conv_biases)):
+            arrays += [(f"{symbol}_conv_weight{index}", weight, "float"), (f"{symbol}_conv_bias{index}", bias, "float")]
+        for name in ("weight", "bias"):
+            pointers = ", ".join(f"{symbol}_conv_{name}{index}" for index in range(len(channels)))
+            pointer_tables.append(f"static const float * const {symbol}_conv_{name}s[{len(channels)}] = {{ {pointers} }};")
+        frontend = getattr(model, "frontend", "temporal")
+        if frontend not in ("temporal", "iq"):
+            raise ValueError("unsupported convolution frontend")
+        enum = "OGAE_NORMALIZED_IQ" if frontend == "iq" else "OGAE_LOCAL_PRODUCTS"
+        extra_fields = ["    .kind = OGAE_TEMPORAL_CONV,", f"    .conv_frontend = {enum}, .conv_layers = {len(channels)},", f"    .conv_channels = {symbol}_conv_channels,", f"    .conv_weights = {symbol}_conv_weights, .conv_biases = {symbol}_conv_biases,"]
+        architecture = f"conv_{frontend}"
+    else:
+        workspace_floats = 2 * samples + features + hidden + model.latent_dim
+        angles = -2 * np.pi * np.arange(samples // 2) / samples
+        arrays = [(f"{symbol}_weight0", model.weights[0], "float"), (f"{symbol}_bias0", model.biases[0], "float")]
+        if hidden:
+            arrays += [(f"{symbol}_weight1", model.weights[1], "float"), (f"{symbol}_bias1", model.biases[1], "float")]
+        arrays += [(f"{symbol}_twiddle_real", np.cos(angles).astype(np.float32), "float"), (f"{symbol}_twiddle_imag", np.sin(angles).astype(np.float32), "float")]
+        extra_fields = ["    .kind = OGAE_SPECTRAL,", f"    .twiddle_real = {symbol}_twiddle_real, .twiddle_imag = {symbol}_twiddle_imag,"]
+        architecture = "spectral_mlp"
+    arrays += [(f"{symbol}_codes", model.prototypes, "float"), (f"{symbol}_reference_classes", reference_classes, "uint16_t"), (f"{symbol}_class_labels", model.classes, "int64_t")]
     aligned = _aligned_bank(model, aligned_iq, aligned_labels)
     if aligned is not None:
         references, compact = aligned
         arrays += [(f"{symbol}_aligned_iq", np.stack((references.real, references.imag), axis=-1), "float"), (f"{symbol}_aligned_classes", compact, "uint16_t")]
-    lines = [f"#ifndef {prefix}_MODEL_H\n#define {prefix}_MODEL_H", '#include "ogae.h"', "/* Generated immutable weights, folded preprocessing and FFT twiddles. */", f"#define {prefix}_WORKSPACE_FLOATS {workspace_floats}u", f"#define {prefix}_SAMPLES {samples}u", f"#define {prefix}_FEATURES {model.input_dim}u", f"#define {prefix}_LATENT {model.latent_dim}u", f"#define {prefix}_CLASSES {len(model.classes)}u"]
+    lines = [f"#ifndef {prefix}_MODEL_H\n#define {prefix}_MODEL_H", '#include "ogae.h"', "/* Generated immutable folded weights and selected frontend descriptor. */", f"#define {prefix}_WORKSPACE_FLOATS {workspace_floats}u", f"#define {prefix}_SAMPLES {samples}u", f"#define {prefix}_FEATURES {features}u", f"#define {prefix}_LATENT {model.latent_dim}u", f"#define {prefix}_CLASSES {len(model.classes)}u"]
     lines.extend(_array(name, array, ctype) for name, array, ctype in arrays)
-    lines.append(f"static const ogae_model {symbol}_model = {{\n" + f"    .samples = {samples}, .features = {model.input_dim}, .hidden = {hidden},\n" + f"    .latent = {model.latent_dim}, .references = {len(model.prototypes)}, .classes = {len(model.classes)},\n" + f"    .weight0 = {symbol}_weight0, .bias0 = {symbol}_bias0,\n" + (f"    .weight1 = {symbol}_weight1, .bias1 = {symbol}_bias1,\n" if hidden else "    .weight1 = NULL, .bias1 = NULL,\n") + f"    .codes = {symbol}_codes, .reference_classes = {symbol}_reference_classes,\n" + f"    .class_labels = {symbol}_class_labels,\n" + f"    .twiddle_real = {symbol}_twiddle_real, .twiddle_imag = {symbol}_twiddle_imag\n" + "};\n#endif\n")
+    lines.extend(pointer_tables)
+    fields = [f"static const ogae_model {symbol}_model = {{", f"    .samples = {samples}, .features = {features}, .hidden = {hidden},", f"    .latent = {model.latent_dim}, .references = {len(model.prototypes)}, .classes = {len(model.classes)},", f"    .weight0 = {symbol}_weight0, .bias0 = {symbol}_bias0,", f"    .weight1 = {symbol}_weight1, .bias1 = {symbol}_bias1," if hidden else "    .weight1 = NULL, .bias1 = NULL,", f"    .codes = {symbol}_codes, .reference_classes = {symbol}_reference_classes,", f"    .class_labels = {symbol}_class_labels,", *extra_fields, "};"]
+    lines.append("\n".join(fields))
     if aligned is not None:
-        lines[-1] = lines[-1].replace("#endif\n", "")
-        lines.append(f"#define {prefix}_HAS_ALIGNED 1\nstatic const ogae_aligned_model {symbol}_aligned_model = {{\n" + f"    .samples = 512, .references = {len(aligned[0])}, .classes = {len(model.classes)},\n" + f"    .templates = {symbol}_aligned_iq, .reference_classes = {symbol}_aligned_classes,\n" + f"    .class_labels = {symbol}_class_labels\n" + "};\n#endif\n")
+        lines.append(f"#define {prefix}_HAS_ALIGNED 1\nstatic const ogae_aligned_model {symbol}_aligned_model = {{\n" + f"    .samples = 512, .references = {len(aligned[0])}, .classes = {len(model.classes)},\n" + f"    .templates = {symbol}_aligned_iq, .reference_classes = {symbol}_aligned_classes,\n" + f"    .class_labels = {symbol}_class_labels\n" + "};")
+    lines.append("#endif\n")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(lines), encoding="utf-8")
-    # Descriptor pointer width is target-dependent and final linked flash includes
-    # code/libm/startup. These numeric payload bytes are not a final ELF size.
     rom_arrays = sum(np.asarray(array).size * (8 if ctype == "int64_t" else 2 if ctype == "uint16_t" else 4) for _, array, ctype in arrays)
-    return {"samples": samples, "features": model.input_dim, "hidden": hidden, "latent": model.latent_dim, "references": len(model.prototypes), "classes": len(model.classes), "workspace_floats": workspace_floats, "workspace_bytes": 4 * workspace_floats, "caller_input_bytes": 2 * samples * 4, "caller_score_bytes": len(model.classes) * 4, "model_numeric_flash_bytes": rom_arrays, "descriptor_bytes": "ABI-dependent", "stack_heap": "kernel uses no heap; compiler stack usage must be measured separately", "arithmetic": model.operation_counts(samples)}
+    return {"architecture": architecture, "samples": samples, "features": features, "hidden": hidden, "latent": model.latent_dim, "references": len(model.prototypes), "classes": len(model.classes), "workspace_floats": workspace_floats, "workspace_bytes": 4 * workspace_floats, "caller_input_bytes": 2 * samples * 4, "caller_score_bytes": len(model.classes) * 4, "model_numeric_flash_bytes": rom_arrays, "descriptor_bytes": "ABI-dependent", "extra_pointer_table_entries": 2 * len(model.conv_weights) if convolution else 0, "stack_heap": "kernel uses no heap; compiler stack usage must be measured separately", "arithmetic": model.operation_counts(samples)}
 
-
-def export_golden(model: LatentAutoencoder, iq: np.ndarray, output: Path, *, symbol: str = "ogae_exported", aligned_iq: np.ndarray | None = None, aligned_labels: np.ndarray | None = None) -> None:
+def export_golden(model: LatentAutoencoder | ConvLatentAutoencoder, iq: np.ndarray, output: Path, *, symbol: str = "ogae_exported", aligned_iq: np.ndarray | None = None, aligned_labels: np.ndarray | None = None) -> None:
     symbol = _symbol(symbol)
     iq = np.asarray(iq, dtype=np.complex64)
     if iq.ndim != 2 or iq.shape[1] != 512 or not len(iq):
         raise ValueError("golden IQ must be a nonempty complex matrix with 512 samples")
-    features = spectral_features(iq, model.input_dim)
+    if isinstance(model, ConvLatentAutoencoder):
+        features = model.extract_features(iq) if hasattr(model, "extract_features") else temporal_features(iq)
+    else:
+        features = spectral_features(iq, model.input_dim)
     latent = model.encode_features(features)
     scores = model.match_codes(latent)
     labels = model.classes[np.argmax(scores, axis=1)]
@@ -154,7 +182,10 @@ def main() -> None:
     args = parser.parse_args()
     if args.cases < 1 or args.cases > 4096:
         parser.error("--cases must be between 1 and 4096")
-    model = LatentAutoencoder.load(args.model)
+    with np.load(args.model, allow_pickle=False) as data:
+        metadata = json.loads(str(data["metadata"].item()))
+    model_class = ConvLatentAutoencoder if metadata.get("format") == "gcfcr-conv-latent-ae" else LatentAutoencoder
+    model = model_class.load(args.model)
     aligned_iq, aligned_labels = None, None
     if args.aligned_bank:
         with np.load(args.aligned_bank, allow_pickle=False) as data:

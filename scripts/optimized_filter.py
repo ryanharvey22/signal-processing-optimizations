@@ -20,12 +20,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from gcfcr.optimized.autoencoder import LatentAutoencoder, fit
 from gcfcr.optimized.features import spectral_features
+from gcfcr.optimized.conv_autoencoder import ConvLatentAutoencoder, fit as fit_conv
 from gcfcr.optimized.baselines import WaveformMatchedFilter, FeaturePrototypeMatcher, select_bank_indices
 from gcfcr.optimized.classifier import FeatureClassifier, fit_classifier
 from gcfcr.optimized.data import load_experiment_data
 from gcfcr.optimized.metrics import classification_metrics, paired_accuracy_interval
 
-LOADERS = {"latent": LatentAutoencoder, "waveform": WaveformMatchedFilter,
+LOADERS = {"conv": ConvLatentAutoencoder, "latent": LatentAutoencoder, "waveform": WaveformMatchedFilter,
            "feature": FeaturePrototypeMatcher, "classifier": FeatureClassifier}
 
 def write_json(path, value):
@@ -169,6 +170,63 @@ def fit_experiment(args):
     write_json(out / "experiment.json", manifest)
     print(json.dumps({name: row["validation_accuracy"] for name, row in models.items()}), flush=True)
 
+
+def fit_conv_experiment(args):
+    """Compare convolutional reconstruction and an identical-backbone ablation."""
+    import torch
+    torch.set_num_threads(args.threads)
+    source, out = args.base_experiment, args.out
+    if (source / "test_report.json").exists():
+        raise ValueError("cannot tune after opening test results")
+    if out.exists():
+        raise ValueError("choose a new output to preserve validation history")
+    manifest = json.loads((source / "experiment.json").read_text())
+    data = data_from_config(manifest["data_config"], args.h5)
+    if data.manifest != manifest["dataset"]:
+        raise ValueError("data identity changed")
+    out.mkdir(parents=True)
+    for row in manifest["models"].values():
+        shutil.copyfile(source / row["file"], out / row["file"])
+    old = manifest["models"].pop("latent")
+    old["file"] = "spectral_ae.npz"
+    shutil.copyfile(source / "latent.npz", out / old["file"])
+    manifest["models"]["spectral_ae"] = old
+    candidates = json.loads((source / "validation_candidates.json").read_text())
+    best_key, best = None, None
+    for latent in args.latent_dims:
+        for k in args.prototype_counts:
+            for weight in args.reconstruction_weights:
+                params = dict(epochs=args.epochs, seed=manifest["seed"], channels=args.channels,
+                              latent_dim=latent, prototypes_per_class=k, batch_size=args.batch_size,
+                              reconstruction_weight=weight, reconstruction_target="spectral", frontend=args.frontend)
+                name = f"conv-l{latent}-p{k}-r{weight:g}"
+                model, history = fit_conv(data.train.iq, data.train.y, data.val.iq, data.val.y,
+                                         **params, progress=progress(name, args.epochs))
+                accuracy = float(np.mean(predict_chunked(model, data.val.iq) == data.val.y))
+                candidates.append({"method": name, "parameters": params,
+                                   "validation_accuracy": accuracy, "operations": model.operation_counts(),
+                                   "history": history})
+                write_json(out / "validation_candidates.json", candidates)
+                model.save(out / (name + ".npz"))
+                if weight == 0:
+                    old_control = manifest["models"].get("conv_no_reconstruction")
+                    if old_control is None or accuracy > old_control["validation_accuracy"]:
+                        manifest["models"]["conv_no_reconstruction"] = save_model(
+                            out, "conv_no_reconstruction", "conv", model, params, accuracy)
+                elif best_key is None or (accuracy, -cost(model)) > best_key:
+                    best_key, best = (accuracy, -cost(model)), (model, params, accuracy)
+    if best is None:
+        raise ValueError("include at least one positive reconstruction weight")
+    manifest["models"]["latent"] = save_model(out, "latent", "conv", *best)
+    manifest["training_versions"] = {"torch": torch.__version__, "numpy": np.__version__}
+    manifest["code_snapshot"] = code_snapshot()
+    manifest["inherited_validation_experiment"] = str(source)
+    manifest["selection"] = "positive-reconstruction candidate with highest validation accuracy; ties lower operations; same-backbone zero-reconstruction control"
+    write_json(out / "experiment.json", manifest)
+    write_json(out / "data_manifest.json", data.manifest)
+    print(json.dumps({name: row["validation_accuracy"] for name, row in manifest["models"].items()}), flush=True)
+
+
 def strengthen(args):
     directory = args.experiment
     if (directory / "test_report.json").exists():
@@ -258,7 +316,7 @@ def evaluate(args):
               "latent_exceeds_all_controls_point_estimate": all(results["latent"]["accuracy"] > row["accuracy"]
                         for name, row in results.items() if name != "latent"),
               "limits": ["Rows are disjoint; unrecorded realization dependence is unknown.",
-                         "Spectral features discard phase and cannot reconstruct original IQ.",
+                         "Feature reconstruction is lossy and does not reconstruct original IQ.",
                          "Arithmetic estimates are not measured hardware instructions; special functions are separate.",
                          "Published results using different datasets/tasks are not a head-to-head comparison."]}
     create_bundle(directory, manifest, data, models)
@@ -415,6 +473,18 @@ def parser():
     f.add_argument("--batch-size", type=int, default=256)
     f.add_argument("--seed", type=int, default=42)
     f.add_argument("--threads", type=int, default=1)
+    c = commands.add_parser("fit-conv")
+    c.add_argument("--base-experiment", type=Path, required=True)
+    c.add_argument("--out", type=Path, required=True)
+    c.add_argument("--h5", type=Path)
+    c.add_argument("--frontend", choices=["temporal", "iq"], default="iq")
+    c.add_argument("--epochs", type=int, default=40)
+    c.add_argument("--channels", type=int, nargs="+", default=[12, 16, 16, 16])
+    c.add_argument("--latent-dims", type=int, nargs="+", default=[16])
+    c.add_argument("--prototype-counts", type=int, nargs="+", default=[1])
+    c.add_argument("--reconstruction-weights", type=float, nargs="+", default=[0.01, 0])
+    c.add_argument("--batch-size", type=int, default=128)
+    c.add_argument("--threads", type=int, default=2)
     st = commands.add_parser("strengthen")
     st.add_argument("--experiment", type=Path, required=True)
     st.add_argument("--h5", type=Path)
@@ -442,7 +512,7 @@ def main():
     if args.command == "native" and (args.repeats < 10 or args.warmup < 0 or args.batch_size < 1):
         raise ValueError("native timing requires repeats>=10, warmup>=0, batch_size>=1")
     with threadpool_limits(limits=getattr(args, "threads", 1)):
-        {"fit": fit_experiment, "strengthen": strengthen, "evaluate": evaluate, "native": native, "freeze": freeze, "rebuild": rebuild}[args.command](args)
+        {"fit": fit_experiment, "fit-conv": fit_conv_experiment, "strengthen": strengthen, "evaluate": evaluate, "native": native, "freeze": freeze, "rebuild": rebuild}[args.command](args)
 
 if __name__ == "__main__":
     main()

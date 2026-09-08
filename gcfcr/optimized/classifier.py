@@ -38,6 +38,8 @@ class FeatureClassifier:
             raise ValueError("invalid feature matrix")
         for i, (w, b) in enumerate(zip(self.weights, self.biases)):
             x = x @ w.T + b
+            if not np.isfinite(x).all():
+                raise ValueError("classifier affine overflowed; check features and weights")
             if i + 1 < len(self.weights):
                 np.maximum(x, 0, out=x)
         if not np.isfinite(x).all():
