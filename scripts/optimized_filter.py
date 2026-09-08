@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from gcfcr.optimized.autoencoder import LatentAutoencoder, fit
 from gcfcr.optimized.features import spectral_features
-from gcfcr.optimized.baselines import WaveformMatchedFilter, FeaturePrototypeMatcher
+from gcfcr.optimized.baselines import WaveformMatchedFilter, FeaturePrototypeMatcher, select_bank_indices
 from gcfcr.optimized.classifier import FeatureClassifier, fit_classifier
 from gcfcr.optimized.data import load_experiment_data
 from gcfcr.optimized.metrics import classification_metrics, paired_accuracy_interval
@@ -73,6 +73,12 @@ def load_models(directory, manifest):
             raise ValueError(f"model hash mismatch: {name}")
         result[name] = LOADERS[row["kind"]].load(path)
     return result
+
+def code_snapshot():
+    files = sorted((ROOT / "gcfcr" / "optimized").glob("*.py")) + [Path(__file__).resolve()]
+    return {"files": {str(p.relative_to(ROOT)).replace("\\\\", "/"): sha256(p) for p in files},
+            "git_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+            "working_tree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())}
 
 def fit_experiment(args):
     import torch
@@ -157,10 +163,53 @@ def fit_experiment(args):
                 "selection": "highest validation accuracy; ties favor lower estimated operations",
                 "test_used_for_selection": False, "seed": args.seed,
                 "training_versions": {"torch": torch.__version__, "numpy": np.__version__},
+                "code_snapshot": code_snapshot(),
                 "scope": "five-class frame discrimination, not universal known-signal detection superiority"}
     write_json(out / "validation_candidates.json", candidates)
     write_json(out / "experiment.json", manifest)
     print(json.dumps({name: row["validation_accuracy"] for name, row in models.items()}), flush=True)
+
+def strengthen(args):
+    directory = args.experiment
+    if (directory / "test_report.json").exists():
+        raise ValueError("cannot tune baselines after opening the test report")
+    manifest = json.loads((directory / "experiment.json").read_text())
+    data = data_from_config(manifest["data_config"], args.h5)
+    if data.manifest != manifest["dataset"]:
+        raise ValueError("data identity changed")
+    candidates = json.loads((directory / "validation_candidates.json").read_text())
+    for mode in ("aligned", "fft"):
+        name = "mf_" + mode
+        for k in args.mf_bank_counts:
+            indices = select_bank_indices(data.train.y, k, seed=manifest["seed"], quality=data.train.snr_db)
+            params = {"mode": mode, "templates_per_class": k, "seed": manifest["seed"],
+                      "bank_indices": indices.tolist()}
+            model = WaveformMatchedFilter(**params).fit(data.train.iq, data.train.y)
+            accuracy = float(np.mean(predict_chunked(model, data.val.iq) == data.val.y))
+            candidate = {"method": name, "reference_selection": "highest training SNR; seeded tie breaks",
+                         "parameters": params, "validation_accuracy": accuracy, "operations": model.operation_counts()}
+            candidates.append(candidate)
+            print(f"{name} high-SNR templates/class={k} val_accuracy={accuracy:.5f}", flush=True)
+            old = manifest["models"][name]
+            if (accuracy, -cost(model)) > (old["validation_accuracy"], -old["operations"]["real_flops_estimate"]):
+                manifest["models"][name] = save_model(directory, name, "waveform", model, params, accuracy)
+                manifest["models"][name]["reference_selection"] = candidate["reference_selection"]
+    for pca in (None, 16):
+        name = "spectral_standardized" if pca is None else "pca_standardized"
+        best_key, best = None, None
+        for k in (1, 4):
+            params = {"pca_dim": pca, "prototypes_per_class": k, "bins": 128, "standardize": True}
+            model = FeaturePrototypeMatcher(**params).fit(data.train.iq, data.train.y)
+            accuracy = float(np.mean(predict_chunked(model, data.val.iq) == data.val.y))
+            candidates.append({"method": name, "parameters": params, "validation_accuracy": accuracy})
+            if best_key is None or (accuracy, -cost(model)) > best_key:
+                best_key, best = (accuracy, -cost(model)), (model, params, accuracy)
+        manifest["models"][name] = save_model(directory, name, "feature", *best)
+    manifest["primary_comparator"] = max(("mf_aligned", "mf_fft"), key=lambda name:
+        (manifest["models"][name]["validation_accuracy"], -manifest["models"][name]["operations"]["real_flops_estimate"]))
+    manifest["code_snapshot"] = code_snapshot()
+    write_json(directory / "validation_candidates.json", candidates)
+    write_json(directory / "experiment.json", manifest)
 
 def create_bundle(directory, manifest, data, models):
     # Query payload is private experiment output, never committed as a dataset.
@@ -200,20 +249,24 @@ def evaluate(args):
                                        groups=data.test.group_ids, seed=manifest["seed"])
     report = {"dataset": manifest["dataset"], "results": results, "primary_comparator": primary,
               "paired_accuracy_difference": interval,
-              "accuracy_superiority_gate": interval["ci95"][0] > 0,
-              "arithmetic_cost_gate": cost(models["latent"]) < cost(models[primary]),
+              "matched_filter_accuracy_superiority_gate": interval["ci95"][0] > 0,
+              "matched_filter_arithmetic_cost_gate": cost(models["latent"]) < cost(models[primary]),
               "native_latency_gate": "pending separate native measurements",
               "state_of_the_art_claim": False,
+              "gate_scope": "only the strongest validation-selected matched-filter bank in this declared grid",
+              "strongest_control_test_accuracy": max(row["accuracy"] for name, row in results.items() if name != "latent"),
+              "latent_exceeds_all_controls_point_estimate": all(results["latent"]["accuracy"] > row["accuracy"]
+                        for name, row in results.items() if name != "latent"),
               "limits": ["Rows are disjoint; unrecorded realization dependence is unknown.",
                          "Spectral features discard phase and cannot reconstruct original IQ.",
                          "Arithmetic estimates are not measured hardware instructions; special functions are separate.",
                          "Published results using different datasets/tasks are not a head-to-head comparison."]}
-    write_json(directory / "test_report.json", report)
     create_bundle(directory, manifest, data, models)
+    write_json(directory / "test_report.json", report)
     print(json.dumps({name: value["accuracy"] for name, value in results.items()}), flush=True)
     print(json.dumps({"primary": primary, "paired_interval": interval,
-                      "accuracy_gate": report["accuracy_superiority_gate"],
-                      "operations_gate": report["arithmetic_cost_gate"]}), flush=True)
+                      "accuracy_gate": report["matched_filter_accuracy_superiority_gate"],
+                      "operations_gate": report["matched_filter_arithmetic_cost_gate"]}), flush=True)
 
 def environment():
     capture = io.StringIO()
@@ -240,11 +293,22 @@ def native(args):
         iq = d["iq"]
         rows = {}
         for name, model in models.items():
-            scores = model.scores(iq[:64])
-            np.testing.assert_allclose(scores, d[name + "_scores"], rtol=3e-4, atol=3e-5)
+            np.testing.assert_allclose(model.scores(iq[:64]), d[name + "_scores"], rtol=3e-4, atol=3e-5)
             predictions = predict_chunked(model, iq)
             if not np.array_equal(predictions, d[name + "_prediction"]):
                 raise ValueError(f"{name}: native predictions differ from frozen golden results")
+            rows[name] = {"accuracy": float(np.mean(predictions == d["y"])),
+                "storage_bytes": model.storage_bytes, "operations": model.operation_counts(),
+                "golden_predictions_equal": True, "trials": []}
+        np.testing.assert_allclose(models["latent"].encode(iq[:64]), d["latent_codes"], rtol=3e-4, atol=3e-5)
+    batch = iq[:min(args.batch_size, len(iq))]
+    names = list(models)
+    orders = []
+    for trial in range(3):
+        order = names if trial % 2 == 0 else list(reversed(names))
+        orders.append(order)
+        for name in order:
+            model = models[name]
             for _ in range(args.warmup):
                 model.predict(iq[:1])
             samples = []
@@ -253,25 +317,25 @@ def native(args):
                 start = time.perf_counter_ns()
                 model.predict(frame)
                 samples.append((time.perf_counter_ns() - start) / 1000)
-            batch = iq[:min(args.batch_size, len(iq))]
             model.predict(batch)
             batch_times = []
-            for _ in range(12):
+            for _ in range(6):
                 start = time.perf_counter_ns()
                 model.predict(batch)
                 batch_times.append((time.perf_counter_ns() - start) / 1e9)
-            rows[name] = {"accuracy": float(np.mean(predictions == d["y"])),
-                "batch1_p50_us": float(np.median(samples)), "batch1_p95_us": float(np.quantile(samples, 0.95)),
-                "batch_size": len(batch), "batch_frames_per_second": float(len(batch) / np.median(batch_times)),
-                "storage_bytes": model.storage_bytes, "operations": model.operation_counts(),
-                "golden_predictions_equal": True}
-        np.testing.assert_allclose(models["latent"].encode(iq[:64]), d["latent_codes"], rtol=3e-4, atol=3e-5)
+            rows[name]["trials"].append({"batch1_p50_us": float(np.median(samples)),
+                "batch1_p95_us": float(np.quantile(samples, 0.95)),
+                "batch_frames_per_second": float(len(batch) / np.median(batch_times))})
+    for row in rows.values():
+        row.update({key: float(np.median([trial[key] for trial in row["trials"]]))
+                    for key in ("batch1_p50_us", "batch1_p95_us", "batch_frames_per_second")})
+        row["batch_size"] = len(batch)
     primary = bundle["primary_comparator"]
     result = {"environment": environment(), "bundle_sha256": sha256(directory / "bundle.json"),
-              "queries_sha256": bundle["queries_sha256"], "results": rows,
-              "primary_comparator": primary, "latency_gate":
+              "queries_sha256": bundle["queries_sha256"], "results": rows, "trial_orders": orders,
+              "primary_comparator": primary, "matched_filter_latency_gate":
               rows["latent"]["batch1_p50_us"] < rows[primary]["batch1_p50_us"],
-              "measurement": "wall-clock input-IQ through prediction; warm caches; single process; includes Python/FFT/BLAS",
+              "measurement": "wall-clock input-IQ through prediction; warm caches; alternating 3 trials; includes Python/FFT/BLAS",
               "hardware_microcontroller_measurement": False}
     write_json(args.output, result)
     print(json.dumps({name: {"p50_us": row["batch1_p50_us"], "fps": row["batch_frames_per_second"]}
@@ -288,6 +352,11 @@ def freeze(args):
     for name, row in manifest["models"].items():
         if row["kind"] != "waveform":
             shutil.copyfile(source / row["file"], target / row["file"])
+    with np.load(source / "queries.npz", allow_pickle=False) as data:
+        arrays = {key: data[key] for key in data.files if key.endswith("_prediction") or
+                  key.endswith("_scores") or key == "latent_codes"}
+    np.savez_compressed(target / "frozen_goldens.npz", **arrays)
+    manifest["frozen_goldens_sha256"] = sha256(target / "frozen_goldens.npz")
     write_json(target / "spec.json", manifest)
     shutil.copyfile(source / "test_report.json", target / "test_report.json")
 
@@ -313,6 +382,16 @@ def rebuild(args):
             shutil.copyfile(source, target / row["file"])
     write_json(target / "experiment.json", spec)
     models = load_models(target, spec)
+    order = np.random.default_rng(spec["seed"] + 991).permutation(len(data.test))
+    iq = data.test.iq[order]
+    frozen = args.spec / "frozen_goldens.npz"
+    if sha256(frozen) != spec["frozen_goldens_sha256"]:
+        raise ValueError("frozen evaluation reference checksum mismatch")
+    with np.load(frozen, allow_pickle=False) as golden:
+        for name, model in models.items():
+            np.testing.assert_array_equal(predict_chunked(model, iq), golden[name + "_prediction"])
+            np.testing.assert_allclose(model.scores(iq[:64]), golden[name + "_scores"], rtol=3e-4, atol=3e-5)
+        np.testing.assert_allclose(models["latent"].encode(iq[:64]), golden["latent_codes"], rtol=3e-4, atol=3e-5)
     create_bundle(target, spec, data, models)
     print(f"rebuilt frozen inference bundle at {target}", flush=True)
 
@@ -336,6 +415,10 @@ def parser():
     f.add_argument("--batch-size", type=int, default=256)
     f.add_argument("--seed", type=int, default=42)
     f.add_argument("--threads", type=int, default=1)
+    st = commands.add_parser("strengthen")
+    st.add_argument("--experiment", type=Path, required=True)
+    st.add_argument("--h5", type=Path)
+    st.add_argument("--mf-bank-counts", type=int, nargs="+", default=[1, 4, 16, 64])
     e = commands.add_parser("evaluate")
     e.add_argument("--experiment", type=Path, required=True)
     e.add_argument("--h5", type=Path)
@@ -359,7 +442,7 @@ def main():
     if args.command == "native" and (args.repeats < 10 or args.warmup < 0 or args.batch_size < 1):
         raise ValueError("native timing requires repeats>=10, warmup>=0, batch_size>=1")
     with threadpool_limits(limits=getattr(args, "threads", 1)):
-        {"fit": fit_experiment, "evaluate": evaluate, "native": native, "freeze": freeze, "rebuild": rebuild}[args.command](args)
+        {"fit": fit_experiment, "strengthen": strengthen, "evaluate": evaluate, "native": native, "freeze": freeze, "rebuild": rebuild}[args.command](args)
 
 if __name__ == "__main__":
     main()

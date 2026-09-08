@@ -1,0 +1,87 @@
+name: Latent filter and embedded validation
+on:
+  push:
+    branches: [codex/latent-autoencoder-matched-filter]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install training and test dependencies
+        run: |
+          python -m pip install -r requirements-optimized.txt pytest
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Regression tests, including native C
+        run: python -m pytest tests -q
+      - name: Train and freeze independent synthetic engineering fixture
+        run: |
+          python scripts/optimized_filter.py fit --out artifacts/smoke --epochs 3 --hidden-dims 16 --latent-dims 8 --prototype-counts 1 --mf-bank-counts 1 4 --train-cap 600 --val-cap 100 --test-cap 100 --synthetic-total 1000
+          python scripts/optimized_filter.py evaluate --experiment artifacts/smoke
+          python scripts/export_embedded.py --model artifacts/smoke/latent.npz --output artifacts/generated/ogae_model.h --golden-output artifacts/generated/ogae_golden.h --golden-iq artifacts/smoke/queries.npz --cases 8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shared-frozen-fixture
+          path: artifacts/
+          retention-days: 7
+  native:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-optimized.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: shared-frozen-fixture
+          path: artifacts
+      - name: Same weights, references and golden queries on each CPU
+        run: python scripts/optimized_filter.py native --experiment artifacts/smoke --output native-results.json --repeats 100
+      - name: Compiled allocation-free C parity
+        run: |
+          cc -std=c99 -O3 -Wall -Wextra -Werror -pedantic -Iembedded -Iartifacts/generated embedded/ogae.c embedded/test_inference.c -lm -o parity
+          ./parity
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.runner }}
+          path: native-results.json
+          retention-days: 7
+  embedded:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: shared-frozen-fixture
+          path: artifacts
+      - name: Install microcontroller compilers and functional emulator
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi qemu-system-arm
+      - name: Cortex-M4F, M7 and M33 build and available functional tests
+        run: python scripts/check_microcontrollers.py --generated artifacts/generated --out artifacts/microcontrollers
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: microcontroller-validation
+          path: |
+            artifacts/microcontrollers/
+            *.su
+          retention-days: 7

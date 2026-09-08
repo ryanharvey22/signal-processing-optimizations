@@ -24,7 +24,7 @@ class FeatureClassifier:
             raise ValueError("one or two affine layers required")
         previous = self.weights[0].shape[1] if self.weights[0].ndim == 2 else 0
         for w, b in zip(self.weights, self.biases):
-            if w.ndim != 2 or not w.shape[0] or w.shape[1] != previous or b.shape != (w.shape[0],):
+            if w.ndim != 2 or not w.shape[0] or not w.shape[1] or w.shape[1] != previous or b.shape != (w.shape[0],):
                 raise ValueError("invalid affine dimensions")
             if not np.isfinite(w).all() or not np.isfinite(b).all():
                 raise ValueError("weights must be finite")
@@ -91,7 +91,7 @@ def fit_classifier(train, y, val, vy, *, hidden_dim=48, epochs=40, seed=42,
     train, val = np.asarray(train, np.float32), np.asarray(val, np.float32)
     y, vy = np.asarray(y), np.asarray(vy)
     if (train.ndim != 2 or val.ndim != 2 or not len(train) or not len(val) or
-        train.shape[1] != val.shape[1] or not np.isfinite(train).all() or not np.isfinite(val).all() or
+        not train.shape[1] or train.shape[1] != val.shape[1] or not np.isfinite(train).all() or not np.isfinite(val).all() or
         y.shape != (len(train),) or vy.shape != (len(val),) or y.dtype.kind not in "iu" or
         vy.dtype.kind not in "iu" or not np.isin(vy, y).all()):
         raise ValueError("invalid training/validation data")
