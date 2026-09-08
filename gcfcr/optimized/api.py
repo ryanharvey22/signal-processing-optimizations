@@ -5,11 +5,14 @@ from pathlib import Path
 import numpy as np
 from .autoencoder import LatentAutoencoder, build_prototype_bank
 from .conv_autoencoder import ConvLatentAutoencoder
+from .coherent_autoencoder import CoherentAutoencoder
 
-def load_model(path: str | Path) -> LatentAutoencoder | ConvLatentAutoencoder:
+def load_model(path: str | Path) -> LatentAutoencoder | ConvLatentAutoencoder | CoherentAutoencoder:
     """Load a numeric NPZ model, dispatching by its explicit format marker."""
     with np.load(path, allow_pickle=False) as arrays:
         metadata = json.loads(str(arrays["metadata"].item()))
+    if metadata.get("format") == "gcfcr-coherent-latent-ae":
+        return CoherentAutoencoder.load(path)
     if metadata.get("format") == "gcfcr-conv-latent-ae":
         return ConvLatentAutoencoder.load(path)
     return LatentAutoencoder.load(path)  # This loader rejects unknown formats.

@@ -1,9 +1,11 @@
-/* POSIX native-host timing for the exact exported C inference pipeline.
+/* Native-host timing for the exact exported C inference pipeline.
  * This is a warm-cache benchmark over a small rotating golden-frame set, not
  * physical MCU timing, a full-dataset accuracy measurement or a baseline race.
  * Workspace and outputs are fixed static arrays; the harness allocates no heap.
  */
+#if !defined(_WIN32)
 #define _POSIX_C_SOURCE 200809L
+#endif
 #include "ogae_model.h"
 #include "ogae_golden.h"
 #include <errno.h>
@@ -11,13 +13,32 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+typedef LARGE_INTEGER benchmark_time;
+static LARGE_INTEGER counter_frequency;
+#define OGAE_BENCH_PLATFORM "windows"
+#define OGAE_BENCH_CLOCK "QueryPerformanceCounter"
+#else
 #include <time.h>
+typedef struct timespec benchmark_time;
+#if defined(__linux__)
+#define OGAE_BENCH_PLATFORM "linux"
+#else
+#define OGAE_BENCH_PLATFORM "posix"
+#endif
+#define OGAE_BENCH_CLOCK "CLOCK_MONOTONIC"
+#endif
 
 #ifndef OGAE_BENCH_MODEL_NAME
-#define OGAE_BENCH_MODEL_NAME "unspecified-export"
+#define OGAE_BENCH_MODEL_NAME (ogae_exported_model.kind == OGAE_COHERENT_CONV ? "exported-coherent-conv" : (ogae_exported_model.kind == OGAE_TEMPORAL_CONV ? "exported-temporal-conv" : "exported-spectral"))
 #endif
 #ifndef OGAE_BENCH_FRONTEND
-#define OGAE_BENCH_FRONTEND "unspecified-see-export-manifest"
+#define OGAE_BENCH_FRONTEND (ogae_exported_model.kind == OGAE_COHERENT_CONV ? "normalized-iq-then-complex-filter-power" : (ogae_exported_model.kind == OGAE_TEMPORAL_CONV ? \
+    (ogae_exported_model.conv_frontend == OGAE_NORMALIZED_IQ ? \
+     "rms-normalized-iq-and-power" : "power-and-adjacent-complex-products") : \
+    "pooled-log-power-spectrum"))
 #endif
 #ifndef OGAE_BENCH_BUILD_ID
 #define OGAE_BENCH_BUILD_ID "unspecified"
@@ -26,9 +47,9 @@
 #error "A nonempty golden frame set is required"
 #endif
 
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(_M_ARM64)
 #define OGAE_BENCH_ARCH "aarch64"
-#elif defined(__x86_64__)
+#elif defined(__x86_64__) || defined(_M_X64)
 #define OGAE_BENCH_ARCH "x86_64"
 #else
 #define OGAE_BENCH_ARCH "other-native-host"
@@ -138,17 +159,49 @@ static int run_frames(unsigned long iterations) {
     return 1;
 }
 
-static int monotonic_now(struct timespec *result) {
+static int initialize_clock(void) {
+#if defined(_WIN32)
+    /* Windows documents a boot-stable counter frequency. Cache it once before
+     * timing, and convert elapsed counter ticks rather than wall-clock time. */
+    if (!QueryPerformanceFrequency(&counter_frequency) || counter_frequency.QuadPart <= 0) {
+        fprintf(stderr, "QueryPerformanceFrequency failed: %lu\n", (unsigned long)GetLastError());
+        return 0;
+    }
+#endif
+    return 1;
+}
+
+static int monotonic_now(benchmark_time *result) {
+#if defined(_WIN32)
+    if (!QueryPerformanceCounter(result)) {
+        fprintf(stderr, "QueryPerformanceCounter failed: %lu\n", (unsigned long)GetLastError());
+        return 0;
+    }
+#else
     if (clock_gettime(CLOCK_MONOTONIC, result) != 0) {
         perror("clock_gettime(CLOCK_MONOTONIC)");
         return 0;
     }
+#endif
     return 1;
 }
 
-static double elapsed_seconds(const struct timespec *begin, const struct timespec *end) {
+static double elapsed_seconds(const benchmark_time *begin, const benchmark_time *end) {
+#if defined(_WIN32)
+    return (double)(end->QuadPart - begin->QuadPart) / (double)counter_frequency.QuadPart;
+#else
     return (double)(end->tv_sec - begin->tv_sec) +
            (double)(end->tv_nsec - begin->tv_nsec) * 1e-9;
+#endif
+}
+
+static const char *processor_environment(void) {
+#if defined(_WIN32)
+    const char *description = getenv("PROCESSOR_IDENTIFIER");
+    return description ? description : "unavailable";
+#else
+    return "see-external-host-record";
+#endif
 }
 
 int main(int argc, char **argv) {
@@ -156,7 +209,7 @@ int main(int argc, char **argv) {
     unsigned long warmup;
     unsigned trial, i, j;
     double seconds[3], sorted_us[3];
-    struct timespec begin, end;
+    benchmark_time begin, end;
     const ogae_model *model = &ogae_exported_model;
     if (argc > 2) {
         fputs("usage: benchmark_native [positive-iterations-per-trial]\n", stderr);
@@ -175,6 +228,7 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
+    if (!initialize_clock()) return 3;
     if (!verify_cases()) return 2;
     warmup = OGAE_EXPORTED_GOLDEN_CASES * 2ul;
     if (warmup < 100ul) warmup = 100ul;
@@ -206,6 +260,12 @@ int main(int argc, char **argv) {
     json_string(OGAE_BENCH_BUILD_ID);
     fputs(",\"architecture\":", stdout);
     json_string(OGAE_BENCH_ARCH);
+    fputs(",\"platform\":", stdout);
+    json_string(OGAE_BENCH_PLATFORM);
+    fputs(",\"clock\":", stdout);
+    json_string(OGAE_BENCH_CLOCK);
+    fputs(",\"processor_environment\":", stdout);
+    json_string(processor_environment());
     fputs(",\"compiler\":", stdout);
     json_string(OGAE_BENCH_COMPILER);
     printf(",\"physical_mcu\":false,\"warm_cache\":true,\"limited_golden_cases\":true,"

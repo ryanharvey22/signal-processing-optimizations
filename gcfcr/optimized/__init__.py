@@ -9,3 +9,6 @@ __all__ += ["ConvLatentAutoencoder", "temporal_features"]
 
 from gcfcr.optimized.api import load_model, with_reference_codes
 __all__ += ["load_model", "with_reference_codes"]
+
+from gcfcr.optimized.coherent_autoencoder import CoherentAutoencoder
+__all__ += ["CoherentAutoencoder"]

@@ -21,12 +21,13 @@ sys.path.insert(0, str(ROOT))
 from gcfcr.optimized.autoencoder import LatentAutoencoder, fit
 from gcfcr.optimized.features import spectral_features
 from gcfcr.optimized.conv_autoencoder import ConvLatentAutoencoder, fit as fit_conv
+from gcfcr.optimized.coherent_autoencoder import CoherentAutoencoder, fit as fit_coherent
 from gcfcr.optimized.baselines import WaveformMatchedFilter, FeaturePrototypeMatcher, select_bank_indices
 from gcfcr.optimized.classifier import FeatureClassifier, fit_classifier
 from gcfcr.optimized.data import load_experiment_data
 from gcfcr.optimized.metrics import classification_metrics, paired_accuracy_interval
 
-LOADERS = {"conv": ConvLatentAutoencoder, "latent": LatentAutoencoder, "waveform": WaveformMatchedFilter,
+LOADERS = {"coherent": CoherentAutoencoder, "conv": ConvLatentAutoencoder, "latent": LatentAutoencoder, "waveform": WaveformMatchedFilter,
            "feature": FeaturePrototypeMatcher, "classifier": FeatureClassifier}
 
 def write_json(path, value):
@@ -80,6 +81,34 @@ def code_snapshot():
     return {"files": {str(p.relative_to(ROOT)).replace("\\\\", "/"): sha256(p) for p in files},
             "git_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
             "working_tree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())}
+
+def ensure_tunable(directory, manifest=None, visited=None):
+    """Fail closed after any test evaluation begins, including interrupted runs."""
+    directory = Path(directory).resolve()
+    visited = set() if visited is None else visited
+    if directory in visited:
+        return
+    visited.add(directory)
+    for name in ("test_evaluation_started.json", "test_report.json", "bundle.json", "frozen_goldens.npz"):
+        if (directory / name).exists():
+            raise ValueError(f"test evaluation has started for {directory.name}; selection is locked")
+    if manifest is None and (directory / "experiment.json").exists():
+        manifest = json.loads((directory / "experiment.json").read_text())
+    if manifest is not None:
+        if manifest.get("test_used_for_selection") is not False:
+            raise ValueError("source must explicitly attest no test selection")
+        inherited = manifest.get("inherited_validation_experiment")
+        if inherited:
+            inherited_path = Path(inherited)
+            if not inherited_path.is_absolute():
+                inherited_path = ROOT / inherited_path
+            if inherited_path.exists():
+                ensure_tunable(inherited_path, visited=visited)
+        for source in manifest.get("validation_source_manifests", []):
+            source_path = source.get("directory_path")
+            if source_path and Path(source_path).exists():
+                ensure_tunable(Path(source_path), visited=visited)
+
 
 def fit_experiment(args):
     started_snapshot = code_snapshot()
@@ -181,11 +210,15 @@ def fit_conv_experiment(args):
     import torch
     torch.set_num_threads(args.threads)
     source, out = args.base_experiment, args.out
-    if (source / "test_report.json").exists():
-        raise ValueError("cannot tune after opening test results")
+    ensure_tunable(source)
     if out.exists():
         raise ValueError("choose a new output to preserve validation history")
     manifest = json.loads((source / "experiment.json").read_text())
+    if manifest.get("test_used_for_selection") is not False:
+        raise ValueError("base must explicitly attest that test data were not used for selection")
+    load_models(source, manifest)
+    inherited_sha256 = sha256(source / "experiment.json")
+    inherited_snapshot = manifest.get("code_snapshot")
     if manifest["models"]["latent"]["kind"] != "latent":
         raise ValueError("fit-conv base must be a spectral experiment; preserve convolution comparisons separately")
     data = data_from_config(manifest["data_config"], args.h5)
@@ -200,14 +233,22 @@ def fit_conv_experiment(args):
     manifest["models"]["spectral_ae"] = old
     candidates = json.loads((source / "validation_candidates.json").read_text())
     best_key, best = None, None
+    zero_controls = {}
     for latent in args.latent_dims:
         for k in args.prototype_counts:
             for weight in args.reconstruction_weights:
                 params = dict(epochs=args.epochs, seed=manifest["seed"], channels=args.channels,
                               latent_dim=latent, prototypes_per_class=k, batch_size=args.batch_size,
                               reconstruction_weight=weight, reconstruction_target="spectral", frontend=args.frontend)
-                name = f"conv-l{latent}-p{k}-r{weight:g}"
-                model, history = fit_conv(data.train.iq, data.train.y, data.val.iq, data.val.y,
+                coherent = args.command == "fit-coherent"
+                kind = "coherent" if coherent else "conv"
+                if coherent:
+                    params.pop("frontend")
+                    params.pop("reconstruction_target")
+                    params.update(complex_channels=args.complex_channels, kernel_size=args.kernel_size)
+                name = f"{kind}-l{latent}-p{k}-r{weight:g}"
+                train_function = fit_coherent if coherent else fit_conv
+                model, history = train_function(data.train.iq, data.train.y, data.val.iq, data.val.y,
                                          **params, progress=progress(name, args.epochs))
                 accuracy = float(np.mean(predict_chunked(model, data.val.iq) == data.val.y))
                 candidates.append({"method": name, "parameters": params,
@@ -216,20 +257,32 @@ def fit_conv_experiment(args):
                 write_json(out / "validation_candidates.json", candidates)
                 model.save(out / (name + ".npz"))
                 if weight == 0:
+                    zero_controls[(latent, k)] = (model, params, accuracy)
                     old_control = manifest["models"].get("conv_no_reconstruction")
                     if old_control is None or accuracy > old_control["validation_accuracy"]:
                         manifest["models"]["conv_no_reconstruction"] = save_model(
-                            out, "conv_no_reconstruction", "conv", model, params, accuracy)
+                            out, "conv_no_reconstruction", kind, model, params, accuracy)
                 elif best_key is None or (accuracy, -cost(model)) > best_key:
                     best_key, best = (accuracy, -cost(model)), (model, params, accuracy)
     if best is None:
         raise ValueError("include at least one positive reconstruction weight")
-    manifest["models"]["latent"] = save_model(out, "latent", "conv", *best)
+    matched = zero_controls[(best[1]["latent_dim"], best[1]["prototypes_per_class"])]
+    global_control = manifest["models"]["conv_no_reconstruction"]
+    if global_control["parameters"] != matched[1]:
+        global_control = dict(global_control)
+        global_control["file"] = "best_discriminative_encoder.npz"
+        shutil.copyfile(out / "conv_no_reconstruction.npz", out / global_control["file"])
+        manifest["models"]["best_discriminative_encoder"] = global_control
+    manifest["models"]["conv_no_reconstruction"] = save_model(
+        out, "conv_no_reconstruction", kind, *matched)
+    manifest["models"]["latent"] = save_model(out, "latent", kind, *best)
     manifest["training_versions"] = {"torch": torch.__version__, "numpy": np.__version__}
     manifest["code_snapshot"] = code_snapshot()
     manifest["training_start_snapshot"] = started_snapshot
     manifest["training_sources_changed_during_run"] = started_snapshot["files"] != manifest["code_snapshot"]["files"]
     manifest["inherited_validation_experiment"] = str(source)
+    manifest["inherited_manifest_sha256"] = inherited_sha256
+    manifest["inherited_code_snapshot"] = inherited_snapshot
     manifest["selection"] = "positive-reconstruction candidate with highest validation accuracy; ties lower operations; same-backbone zero-reconstruction control"
     write_json(out / "experiment.json", manifest)
     write_json(out / "data_manifest.json", data.manifest)
@@ -238,8 +291,7 @@ def fit_conv_experiment(args):
 
 def strengthen(args):
     directory = args.experiment
-    if (directory / "test_report.json").exists():
-        raise ValueError("cannot tune baselines after opening the test report")
+    ensure_tunable(directory)
     manifest = json.loads((directory / "experiment.json").read_text())
     data = data_from_config(manifest["data_config"], args.h5)
     if data.manifest != manifest["dataset"]:
@@ -305,6 +357,17 @@ def evaluate(args):
     data = data_from_config(manifest["data_config"], args.h5)
     if data.manifest != manifest["dataset"]:
         raise ValueError("data identity/split manifest changed")
+    marker = directory / "test_evaluation_started.json"
+    identity = {"experiment_sha256": sha256(directory / "experiment.json"),
+                "selection_locked": True}
+    if marker.exists():
+        if json.loads(marker.read_text()) != identity:
+            raise ValueError("cannot resume test evaluation after experiment artifacts changed")
+    else:
+        # This survives a later prediction/export failure; all tuning paths reject it.
+        with marker.open("x", encoding="utf-8") as stream:
+            json.dump(identity, stream, indent=2)
+            stream.write("\n")
     predictions, results = {}, {}
     for name, model in models.items():
         prediction = predict_chunked(model, data.test.iq)
@@ -328,6 +391,11 @@ def evaluate(args):
                          "Feature reconstruction is lossy and does not reconstruct original IQ.",
                          "Arithmetic estimates are not measured hardware instructions; special functions are separate.",
                          "Published results using different datasets/tasks are not a head-to-head comparison."]}
+    if "encoder_no_reconstruction" in predictions:
+        report["paired_reconstruction_ablation"] = paired_accuracy_interval(
+            data.test.y, predictions["latent"], predictions["encoder_no_reconstruction"],
+            groups=data.test.group_ids, seed=manifest["seed"])
+        report["ablation_scope"] = "fixed selected encoder architecture; paired row bootstrap; one training seed"
     create_bundle(directory, manifest, data, models)
     write_json(directory / "test_report.json", report)
     print(json.dumps({name: value["accuracy"] for name, value in results.items()}), flush=True)
@@ -494,6 +562,20 @@ def parser():
     c.add_argument("--reconstruction-weights", type=float, nargs="+", default=[0.01, 0])
     c.add_argument("--batch-size", type=int, default=128)
     c.add_argument("--threads", type=int, default=2)
+    co = commands.add_parser("fit-coherent")
+    co.add_argument("--base-experiment", type=Path, required=True)
+    co.add_argument("--out", type=Path, required=True)
+    co.add_argument("--h5", type=Path)
+    co.add_argument("--epochs", type=int, default=60)
+    co.add_argument("--channels", type=int, nargs="+", default=[12, 16, 16, 16, 16])
+    co.add_argument("--complex-channels", type=int, default=8)
+    co.add_argument("--kernel-size", type=int, default=33)
+    co.add_argument("--latent-dims", type=int, nargs="+", default=[16])
+    co.add_argument("--prototype-counts", type=int, nargs="+", default=[1])
+    co.add_argument("--reconstruction-weights", type=float, nargs="+", default=[0.01, 0])
+    co.add_argument("--batch-size", type=int, default=128)
+    co.add_argument("--threads", type=int, default=2)
+    co.set_defaults(frontend="iq")
     st = commands.add_parser("strengthen")
     st.add_argument("--experiment", type=Path, required=True)
     st.add_argument("--h5", type=Path)
@@ -521,7 +603,7 @@ def main():
     if args.command == "native" and (args.repeats < 10 or args.warmup < 0 or args.batch_size < 1):
         raise ValueError("native timing requires repeats>=10, warmup>=0, batch_size>=1")
     with threadpool_limits(limits=getattr(args, "threads", 1)):
-        {"fit": fit_experiment, "fit-conv": fit_conv_experiment, "strengthen": strengthen, "evaluate": evaluate, "native": native, "freeze": freeze, "rebuild": rebuild}[args.command](args)
+        {"fit": fit_experiment, "fit-conv": fit_conv_experiment, "fit-coherent": fit_conv_experiment, "strengthen": strengthen, "evaluate": evaluate, "native": native, "freeze": freeze, "rebuild": rebuild}[args.command](args)
 
 if __name__ == "__main__":
     main()

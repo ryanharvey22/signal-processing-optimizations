@@ -24,9 +24,9 @@ jobs:
       - name: Train and freeze independent synthetic engineering fixture
         run: |
           python scripts/optimized_filter.py fit --out artifacts/smoke --epochs 3 --hidden-dims 16 --latent-dims 8 --prototype-counts 1 --mf-bank-counts 1 4 --train-cap 600 --val-cap 100 --test-cap 100 --synthetic-total 1000
-          python scripts/optimized_filter.py fit-conv --base-experiment artifacts/smoke --out artifacts/conv-smoke --frontend iq --channels 12 16 16 16 16 16 --epochs 3 --reconstruction-weights 0.01 0
-          python scripts/optimized_filter.py evaluate --experiment artifacts/conv-smoke
-          python scripts/export_embedded.py --model artifacts/conv-smoke/latent.npz --output artifacts/generated/ogae_model.h --golden-output artifacts/generated/ogae_golden.h --golden-iq artifacts/conv-smoke/queries.npz --cases 8
+          python scripts/optimized_filter.py fit-coherent --base-experiment artifacts/smoke --out artifacts/selected-smoke --complex-channels 16 --kernel-size 65 --channels 12 16 16 16 16 --epochs 3 --reconstruction-weights 0.01 0
+          python scripts/optimized_filter.py evaluate --experiment artifacts/selected-smoke
+          python scripts/export_embedded.py --model artifacts/selected-smoke/latent.npz --output artifacts/generated/ogae_model.h --golden-output artifacts/generated/ogae_golden.h --golden-iq artifacts/selected-smoke/queries.npz --cases 8
       - uses: actions/upload-artifact@v4
         with:
           name: shared-frozen-fixture
@@ -51,7 +51,7 @@ jobs:
           name: shared-frozen-fixture
           path: artifacts
       - name: Same weights, references and golden queries on each CPU
-        run: python scripts/optimized_filter.py native --experiment artifacts/conv-smoke --output native-results.json --repeats 100
+        run: python scripts/optimized_filter.py native --experiment artifacts/selected-smoke --output native-results.json --repeats 100
       - name: Compiled allocation-free C parity
         run: |
           cc -std=c99 -O3 -Wall -Wextra -Werror -pedantic -Iembedded -Iartifacts/generated embedded/ogae.c embedded/test_inference.c -lm -o parity

@@ -23,11 +23,12 @@ python -m pip install pytest
 python scripts/fetch_radchar_tiny.py
 python scripts/optimized_filter.py fit --h5 data/radchar/RadChar-Tiny.h5 --out experiments/spectral --mf-bank-counts 1 4 16 64
 python scripts/optimized_filter.py strengthen --experiment experiments/spectral --mf-bank-counts 256 1024
-python scripts/optimized_filter.py fit-conv --base-experiment experiments/spectral --out experiments/coherent --frontend iq --channels 12 16 16 16 16 16 --epochs 60
+python scripts/optimized_filter.py fit-coherent --base-experiment experiments/spectral --out experiments/coherent --epochs 60
+python scripts/assemble_optimized_comparison.py --experiments experiments/spectral experiments/coherent --out experiments/final
 # Freeze all choices before opening test results:
-python scripts/optimized_filter.py evaluate --experiment experiments/coherent
-python scripts/optimized_filter.py native --experiment experiments/coherent --output experiments/native.json
-python scripts/export_embedded.py --model experiments/coherent/latent.npz --output build/generated/ogae_model.h
+python scripts/optimized_filter.py evaluate --experiment experiments/final
+python scripts/optimized_filter.py native --experiment experiments/final --output experiments/native.json
+python scripts/export_embedded.py --model experiments/final/latent.npz --output build/generated/ogae_model.h
 ```
 
 `fit-conv` compares a spectral-reconstruction auxiliary loss with the same
@@ -36,6 +37,13 @@ frontend preserves coherent I/Q; the alternative `temporal` frontend uses
 normalized power and adjacent complex products. Neither decoder reconstructs
 the original IQ waveform. The spectral MLP remains available as a smaller,
 cheaper alternative. Validation history retains all candidates and controls.
+
+The coherent variant first applies learned complex filters, then forms response
+power and runs a small real-valued encoder. This preserves coherent integration
+within the first kernel and gives analytic global-phase invariance. The kernel
+can still lose phase relationships beyond its length; only measurements establish
+whether the resulting accuracy tradeoff is useful. Its complex coefficients are
+immutable to keep the cached inference representation consistent with export.
 
 The source dataset and split memberships are hashed. The full population is
 split before caps are applied, so training, validation, and test rows remain
@@ -46,7 +54,7 @@ codes before creating an architecture benchmark bundle.
 ```python
 from gcfcr.optimized import load_model, with_reference_codes
 
-model = load_model("experiments/coherent/latent.npz")
+model = load_model("experiments/final/latent.npz")
 codes = model.encode(iq_frames)       # complex64 array: (frames, 512)
 scores = model.match_codes(codes)    # columns follow model.classes
 labels = model.predict(iq_frames)

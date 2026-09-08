@@ -21,7 +21,7 @@ typedef enum {
     OGAE_NUMERIC_ERROR = -3
 } ogae_status;
 
-typedef enum { OGAE_SPECTRAL = 0, OGAE_TEMPORAL_CONV = 1 } ogae_model_kind;
+typedef enum { OGAE_SPECTRAL = 0, OGAE_TEMPORAL_CONV = 1, OGAE_COHERENT_CONV = 2 } ogae_model_kind;
 typedef enum { OGAE_LOCAL_PRODUCTS = 0, OGAE_NORMALIZED_IQ = 1 } ogae_conv_frontend;
 
 typedef struct {
@@ -46,13 +46,24 @@ typedef struct {
     const uint16_t *conv_channels;
     const float * const *conv_weights; /* Output-channel, input-channel, tap. */
     const float * const *conv_biases;
-    /* Temporal kind uses weight0/bias0 for the pooled projection, and no FFT. */
+    uint16_t coherent_channels;
+    uint16_t coherent_kernel;
+    const float *coherent_real;
+    const float *coherent_imag;
+    const float *power_gain;
+    const float *power_bias;
+    /* Both convolution kinds use weight0/bias0 for the pooled projection.
+     * Coherent kind has a complex stage first, then conv_layers real stages.
+     * Its features are 2*samples normalized IQ; power_gain/bias remain explicit
+     * because a negative BN gain cannot be folded inside magnitude-squaring. */
 } ogae_model;
 
 /* Zero means invalid dimensions. Bytes = returned count * sizeof(float).
  * Spectral: 2*samples + features + hidden + latent floats.
  * Temporal: features + largest odd-stage output + largest even-stage output
  *           + 2*last_conv_channels + latent. Retains frontend for debug parity.
+ * Coherent uses the same alternating-stage formula, counting its complex-power
+ * output as the first stage. Its retained frontend has 2*samples floats.
  */
 size_t ogae_workspace_floats(const ogae_model *model);
 

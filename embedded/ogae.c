@@ -17,11 +17,16 @@ static int shape_valid(const ogae_model *m) {
     if (m->kind == OGAE_SPECTRAL)
         return m->features && !(m->samples % m->features) && m->twiddle_real && m->twiddle_imag &&
             (!m->hidden || (m->weight1 && m->bias1));
-    if (m->kind != OGAE_TEMPORAL_CONV || m->samples != 512 || m->features != 3u * m->samples ||
-        (m->conv_frontend != OGAE_LOCAL_PRODUCTS && m->conv_frontend != OGAE_NORMALIZED_IQ) ||
-        (m->conv_layers < 3 || m->conv_layers > 7) || !m->conv_channels || !m->conv_weights || !m->conv_biases)
-        return 0;
-    for (layer = 0; layer < m->conv_layers; ++layer)
+    if (m->samples != 512 || !m->conv_channels || !m->conv_weights || !m->conv_biases) return 0;
+    if (m->kind == OGAE_TEMPORAL_CONV) {
+        if (m->features != 3u * m->samples || (m->conv_layers < 3 || m->conv_layers > 7) ||
+            (m->conv_frontend != OGAE_LOCAL_PRODUCTS && m->conv_frontend != OGAE_NORMALIZED_IQ)) return 0;
+    } else if (m->kind == OGAE_COHERENT_CONV) {
+        if (m->features != 2u * m->samples || m->conv_layers < 3 || m->conv_layers > 5 ||
+            !m->coherent_channels || m->coherent_channels > 256 ||
+            m->coherent_kernel < 3 || m->coherent_kernel > 65 || !(m->coherent_kernel & 1u) ||
+            !m->coherent_real || !m->coherent_imag || !m->power_gain || !m->power_bias) return 0;
+    } else return 0;    for (layer = 0; layer < m->conv_layers; ++layer)
         if (!m->conv_channels[layer] || m->conv_channels[layer] > 256 || !m->conv_weights[layer] || !m->conv_biases[layer])
             return 0;
     return 1;
@@ -29,10 +34,12 @@ static int shape_valid(const ogae_model *m) {
 
 static void conv_buffer_sizes(const ogae_model *m, size_t *a, size_t *b) {
     unsigned layer;
-    *a = *b = 0;
+    unsigned first = m->kind == OGAE_COHERENT_CONV;
+    *a = first ? (size_t)(m->samples / 2u) * m->coherent_channels : 0;
+    *b = 0;
     for (layer = 0; layer < m->conv_layers; ++layer) {
-        size_t count = (size_t)(m->samples >> (layer + 1u)) * m->conv_channels[layer];
-        size_t *maximum = layer & 1u ? b : a;
+        size_t count = (size_t)(m->samples >> (layer + 1u + first)) * m->conv_channels[layer];
+        size_t *maximum = (layer + first) & 1u ? b : a;
         if (count > *maximum) *maximum = count;
     }
 }
@@ -63,7 +70,12 @@ ogae_status ogae_validate_model(const ogae_model *m) {
             !finite_array(m->twiddle_real, m->samples / 2u) || !finite_array(m->twiddle_imag, m->samples / 2u))
             return OGAE_NUMERIC_ERROR;
     } else {
-        unsigned layer, channels = 3;
+        unsigned layer, channels = m->kind == OGAE_COHERENT_CONV ? m->coherent_channels : 3;
+        if (m->kind == OGAE_COHERENT_CONV &&
+            (!finite_array(m->coherent_real, (size_t)m->coherent_channels * m->coherent_kernel) ||
+             !finite_array(m->coherent_imag, (size_t)m->coherent_channels * m->coherent_kernel) ||
+             !finite_array(m->power_gain, m->coherent_channels) || !finite_array(m->power_bias, m->coherent_channels)))
+            return OGAE_NUMERIC_ERROR;
         for (layer = 0; layer < m->conv_layers; ++layer) {
             if (!finite_array(m->conv_weights[layer], (size_t)m->conv_channels[layer] * channels * 5u) ||
                 !finite_array(m->conv_biases[layer], m->conv_channels[layer])) return OGAE_NUMERIC_ERROR;
@@ -86,7 +98,7 @@ ogae_status ogae_validate_model(const ogae_model *m) {
 }
 
 const float *ogae_features(const ogae_model *m, const float *workspace) {
-    return m->kind == OGAE_TEMPORAL_CONV ? workspace : workspace + 2u * m->samples;
+    return m->kind != OGAE_SPECTRAL ? workspace : workspace + 2u * m->samples;
 }
 
 const float *ogae_latent(const ogae_model *m, const float *workspace) {
@@ -186,6 +198,52 @@ static int temporal_frontend(const float *iq, unsigned n, float *features, ogae_
     }
     return 1;
 }
+static int coherent_frontend(const float *iq, unsigned n, float *features) {
+    unsigned sample;
+    float energy = 0.0f, rms;
+    for (sample = 0; sample < n; ++sample) {
+        float real = iq[2u * sample], imag = iq[2u * sample + 1u];
+        if (!isfinite(real) || !isfinite(imag)) return 0;
+        energy += real * real + imag * imag;
+    }
+    if (!isfinite(energy)) return 0;
+    rms = sqrtf(energy / n);
+    for (sample = 0; sample < n; ++sample) {
+        features[sample] = rms > 0.0f ? iq[2u * sample] / rms : 0.0f;
+        features[n + sample] = rms > 0.0f ? iq[2u * sample + 1u] / rms : 0.0f;
+    }
+    return 1;
+}
+
+static int coherent_power(const ogae_model *m, const float *input, float *output) {
+    unsigned channel, position, length = m->samples, output_length = length / 2u;
+    for (channel = 0; channel < m->coherent_channels; ++channel) {
+        const float *wr = m->coherent_real + (size_t)channel * m->coherent_kernel;
+        const float *wi = m->coherent_imag + (size_t)channel * m->coherent_kernel;
+        for (position = 0; position < output_length; ++position) {
+            unsigned tap;
+            unsigned start = 2u * position + length - m->coherent_kernel / 2u;
+            float real = 0.0f, imag = 0.0f, power, value;
+            /* Coherent complex accumulation precedes the nonlinear detector.
+             * No complex bias is used: it would break global-phase equivariance.
+             * First-layer BatchNorm gain/bias act AFTER magnitude-squaring and
+             * remain explicit, including negative gains, before ReLU. */
+            for (tap = 0; tap < m->coherent_kernel; ++tap) {
+                unsigned sample = (start + tap) & (length - 1u);
+                float xr = input[sample], xi = input[length + sample];
+                real += wr[tap] * xr; real -= wi[tap] * xi;
+                imag += wi[tap] * xr; imag += wr[tap] * xi;
+            }
+            if (!isfinite(real) || !isfinite(imag)) return 0;
+            power = real * real + imag * imag;
+            if (!isfinite(power)) return 0;
+            value = power * m->power_gain[channel] + m->power_bias[channel];
+            if (!isfinite(value)) return 0;
+            output[(size_t)channel * output_length + position] = value > 0.0f ? value : 0.0f;
+        }
+    }
+    return 1;
+}
 static int conv_relu(const float *input, unsigned inputs, unsigned length, float *output,
                      unsigned outputs, const float *weights, const float *bias) {
     unsigned row, position, output_length = length >> 1, mask = length - 1u;
@@ -217,12 +275,16 @@ static ogae_status predict_conv(const ogae_model *m, const float *iq, float *wor
     float *a, *b, *pool, *latent;
     const float *input = workspace;
     unsigned layer, channel, length = m->samples, channels = 3;
+    unsigned first = m->kind == OGAE_COHERENT_CONV;
     conv_buffer_sizes(m, &a_size, &b_size);
     a = workspace + m->features; b = a + a_size; pool = b + b_size;
     latent = pool + 2u * m->conv_channels[m->conv_layers - 1u];
-    if (!temporal_frontend(iq, m->samples, workspace, m->conv_frontend)) return OGAE_NUMERIC_ERROR;
+    if (first) {
+        if (!coherent_frontend(iq, m->samples, workspace) || !coherent_power(m, workspace, a)) return OGAE_NUMERIC_ERROR;
+        input = a; channels = m->coherent_channels; length >>= 1;
+    } else if (!temporal_frontend(iq, m->samples, workspace, m->conv_frontend)) return OGAE_NUMERIC_ERROR;
     for (layer = 0; layer < m->conv_layers; ++layer) {
-        float *output = layer & 1u ? b : a;
+        float *output = (layer + first) & 1u ? b : a;
         if (!conv_relu(input, channels, length, output, m->conv_channels[layer],
                         m->conv_weights[layer], m->conv_biases[layer])) return OGAE_NUMERIC_ERROR;
         input = output; channels = m->conv_channels[layer]; length >>= 1;
@@ -249,7 +311,7 @@ ogae_status ogae_predict(const ogae_model *m, const float *iq, float *workspace,
     unsigned index, reversed = 0;
     if (!required || !iq || !workspace || !scores || !label) return OGAE_INVALID_ARGUMENT;
     if (workspace_count < required) return OGAE_WORKSPACE_TOO_SMALL;
-    if (m->kind == OGAE_TEMPORAL_CONV) return predict_conv(m, iq, workspace, scores, label);
+    if (m->kind != OGAE_SPECTRAL) return predict_conv(m, iq, workspace, scores, label);
     real = workspace; imag = real + m->samples; features = imag + m->samples;
     hidden = features + m->features; latent = hidden + m->hidden;
     for (index = 0; index < m->samples; ++index) {

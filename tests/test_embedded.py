@@ -13,6 +13,7 @@ import numpy as np
 
 from gcfcr.optimized.autoencoder import LatentAutoencoder
 from gcfcr.optimized.conv_autoencoder import ConvLatentAutoencoder
+from gcfcr.optimized.coherent_autoencoder import CoherentAutoencoder
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("export_embedded", ROOT / "scripts/export_embedded.py")
@@ -37,6 +38,15 @@ def conv_model(channels=(12, 16, 16, 16), frontend="temporal") -> ConvLatentAuto
     weights = tuple(rng.normal(0, 0.07, (out, inp, 5)).astype(np.float32) for inp, out in zip(widths, widths[1:]))
     biases = tuple(rng.normal(0, 0.04, out).astype(np.float32) for out in channels)
     return ConvLatentAutoencoder(weights, biases, rng.normal(0, 0.1, (16, 2 * channels[-1])), rng.normal(0, 0.1, 16), rng.normal(size=(5, 16)), np.arange(5), frontend=frontend)
+
+def coherent_model(channels=(12, 16, 16, 16, 16), kernel=33, negative_gain=False):
+    rng = np.random.default_rng(647)
+    complex_channels = 8
+    widths = [complex_channels, *channels]
+    gain = np.ones(complex_channels, np.float32)
+    if negative_gain:
+        gain[::2] = -1
+    return CoherentAutoencoder(rng.normal(0, 0.1, (complex_channels, kernel)), rng.normal(0, 0.1, (complex_channels, kernel)), gain, np.full(complex_channels, 0.3), tuple(rng.normal(0, 0.05, (out, inp, 5)) for inp, out in zip(widths, widths[1:])), tuple(rng.normal(0, 0.1, out) for out in channels), rng.normal(0, 0.1, (16, 2 * channels[-1])), rng.normal(0, 0.1, 16), rng.normal(size=(5, 16)), np.arange(5))
 
 class EmbeddedTests(unittest.TestCase):
     def test_export_memory_and_immutable_tables(self):
@@ -71,9 +81,22 @@ class EmbeddedTests(unittest.TestCase):
                     self.assertEqual(report["extra_pointer_table_entries"], 8)
                     EXPORT.export_golden(candidate, EXPORT.diagnostic_iq(8), Path(directory) / "ogae_golden.h")
 
+    def test_coherent_export_keeps_signed_power_normalization(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ogae_model.h"
+            candidate = coherent_model(negative_gain=True)
+            report = EXPORT.export_model(candidate, path)
+            self.assertEqual(report["workspace_bytes"], 18624)
+            self.assertLess(report["model_numeric_flash_bytes"], 32 * 1024)
+            self.assertEqual(report["architecture"], "coherent_conv")
+            self.assertIn(".kind = OGAE_COHERENT_CONV", path.read_text())
+            self.assertIn("ogae_exported_power_gain", path.read_text())
+            self.assertNotIn("twiddle_real[", path.read_text())
+            EXPORT.export_golden(candidate, EXPORT.diagnostic_iq(8), Path(directory) / "ogae_golden.h")
+
     @unittest.skipUnless(COMPILER, "native C compiler is required for embedded kernel parity")
     def test_c99_matches_numpy_for_linear_and_hidden_encoders(self):
-        candidates = [model(0), model(48), conv_model((12, 16, 16)), conv_model(), conv_model(frontend="iq"), conv_model((16, 2, 2, 128)), conv_model((4, 6, 6, 6, 6, 6, 6), frontend="iq")]
+        candidates = [model(0), model(48), conv_model((12, 16, 16)), conv_model(), conv_model(frontend="iq"), conv_model((16, 2, 2, 128)), conv_model((4, 6, 6, 6, 6, 6, 6), frontend="iq"), coherent_model(), coherent_model((12, 16, 16), kernel=17, negative_gain=True)]
         for index, candidate in enumerate(candidates):
             with self.subTest(model=index), tempfile.TemporaryDirectory() as directory:
                 directory = Path(directory)

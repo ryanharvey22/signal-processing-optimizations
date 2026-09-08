@@ -1,11 +1,12 @@
 # Native C inference benchmark
 
 [embedded/benchmark_native.c](../embedded/benchmark_native.c) measures complete
-calls to the exported `ogae_predict` pipeline on a POSIX native host. Use it on
+calls to the exported `ogae_predict` pipeline on a Linux/POSIX or Windows native host. Use it on
 both x86-64 and AArch64 with the **same frozen model and golden frame headers**.
-It uses the shared API for spectral and temporal-convolution exports. Supply an
-explicit model name and frontend description from the export manifest; an
-unspecified label is reported honestly rather than inferred from dimensions.
+It uses the shared API for spectral and temporal-convolution exports. By default,
+it identifies the model family and frontend from the exported descriptor. Supply
+an explicit model name to identify the particular frozen artifact; model-family
+metadata alone does not identify its training run or weights.
 
 This is a warm-cache microbenchmark over a limited rotating input set. It is not
 a physical Cortex-M measurement, full-dataset accuracy evaluation or speed
@@ -52,7 +53,12 @@ and parity checks are outside the measured interval.
 
 ## What the JSON measures
 
-Timing uses POSIX `CLOCK_MONOTONIC` around each batch of repeated calls. Every
+Timing uses POSIX `CLOCK_MONOTONIC` or Windows `QueryPerformanceCounter`
+around each batch of repeated calls. The Windows performance-counter frequency
+is read once before timing and elapsed ticks are converted to seconds; it does
+not use wall-clock time. See Microsoft documentation for
+[QueryPerformanceCounter](https://learn.microsoft.com/en-us/windows/win32/api/profileapi/nf-profileapi-queryperformancecounter)
+and [QueryPerformanceFrequency](https://learn.microsoft.com/en-us/windows/win32/api/profileapi/nf-profileapi-queryperformancefrequency). Every
 call processes a raw interleaved IQ frame through its actual front end, encoder
 and latent reference matching. The frame index rotates through the golden set.
 Status checks, frame rotation and volatile output-consumption overhead are
@@ -61,6 +67,7 @@ allocate a heap buffer or recreate the model inside the loop.
 
 | Field | Meaning |
 |---|---|
+| `platform`, `clock`, `processor_environment` | OS/clock selection and the Windows processor-environment hint, or a reference to the external host record |
 | `trial_seconds` | Three measured batch durations |
 | `median_trial_mean_us` | Median of the three batch-mean times per frame |
 | `minimum_trial_mean_us`, `maximum_trial_mean_us` | Range of batch means |
@@ -76,6 +83,28 @@ independent full-dataset runs and a suitable latency sampling protocol if those
 metrics are required. Keep background training or other CPU-intensive work out
 of final benchmark runs.
 
+## Windows diagnostic build
+
+A Windows-native C compiler can run the same fixed-weight harness. With the
+optional Zig compiler package already installed in the project environment:
+
+```powershell
+& .venv\Scripts\python.exe -m ziglang cc -std=c99 -O3 -Wall -Wextra -Werror -pedantic `
+  -Iembedded -Ibuild/native-preview embedded/ogae.c embedded/test_inference.c `
+  -lm -o build/native-preview/parity.exe
+& .\build\native-preview\parity.exe
+& .venv\Scripts\python.exe -m ziglang cc -std=c99 -O3 -Wall -Wextra -Werror -pedantic `
+  -Iembedded -Ibuild/native-preview embedded/ogae.c embedded/benchmark_native.c `
+  -lm -o build/native-preview/benchmark.exe
+& .\build\native-preview\benchmark.exe 1000
+```
+
+The directory must already contain headers generated from the intended frozen
+model. The processor environment string is an OS-provided hint, not a substitute
+for recording the exact CPU model, power policy and competing workloads. A
+local run made during training is diagnostic only; repeat after training stops
+before publishing comparable timings. The Windows clock branch does not change
+the C inference kernel or the Linux clock path.
 ## CI integration
 
 Add the compile and execute commands to the existing native x86-64/AArch64

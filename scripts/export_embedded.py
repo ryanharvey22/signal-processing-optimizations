@@ -16,6 +16,7 @@ if str(ROOT) not in sys.path:
 
 from gcfcr.optimized.autoencoder import LatentAutoencoder
 from gcfcr.optimized.conv_autoencoder import ConvLatentAutoencoder, temporal_features
+from gcfcr.optimized.coherent_autoencoder import CoherentAutoencoder
 from gcfcr.optimized.features import spectral_features
 
 
@@ -64,13 +65,14 @@ def _aligned_bank(model: LatentAutoencoder, iq: np.ndarray | None, labels: np.nd
     compact = np.searchsorted(model.classes, labels).astype(np.uint16)
     return normalized, compact
 
-def export_model(model: LatentAutoencoder | ConvLatentAutoencoder, output: Path, *, symbol: str = "ogae_exported", samples: int = 512, aligned_iq: np.ndarray | None = None, aligned_labels: np.ndarray | None = None) -> dict:
+def export_model(model: LatentAutoencoder | ConvLatentAutoencoder | CoherentAutoencoder, output: Path, *, symbol: str = "ogae_exported", samples: int = 512, aligned_iq: np.ndarray | None = None, aligned_labels: np.ndarray | None = None) -> dict:
     symbol = _symbol(symbol)
     if samples != 512:
         raise ValueError("embedded exporter currently supports 512-sample IQ frames")
-    convolution = isinstance(model, ConvLatentAutoencoder)
+    coherent = isinstance(model, CoherentAutoencoder)
+    convolution = isinstance(model, (ConvLatentAutoencoder, CoherentAutoencoder))
     hidden = 0 if convolution else (model.weights[0].shape[0] if len(model.weights) == 2 else 0)
-    features = 3 * samples if convolution else model.input_dim
+    features = 2 * samples if coherent else 3 * samples if convolution else model.input_dim
     dimensions = (samples, features, hidden, model.latent_dim, len(model.prototypes), len(model.classes))
     if any(value < 0 or value > 65535 for value in dimensions) or (not convolution and samples % features):
         raise ValueError("model dimensions do not fit the embedded descriptor")
@@ -82,10 +84,17 @@ def export_model(model: LatentAutoencoder | ConvLatentAutoencoder, output: Path,
         channels = [len(weight) for weight in model.conv_weights]
         if any(channel > 256 for channel in channels):
             raise ValueError("embedded convolution supports at most 256 channels per stage")
-        stage_sizes = [(samples >> (index + 1)) * channel for index, channel in enumerate(channels)]
+        if coherent:
+            if len(model.complex_real) > 256:
+                raise ValueError("embedded coherent filtering supports at most 256 complex channels")
+            stage_sizes = [samples // 2 * len(model.complex_real)] + [(samples >> (index + 2)) * channel for index, channel in enumerate(channels)]
+        else:
+            stage_sizes = [(samples >> (index + 1)) * channel for index, channel in enumerate(channels)]
         odd, even = max(stage_sizes[::2]), max(stage_sizes[1::2])
         workspace_floats = features + odd + even + 2 * channels[-1] + model.latent_dim
         arrays = [(f"{symbol}_weight0", model.projection_weight, "float"), (f"{symbol}_bias0", model.projection_bias, "float"), (f"{symbol}_conv_channels", np.asarray(channels, np.uint16), "uint16_t")]
+        if coherent:
+            arrays += [(f"{symbol}_coherent_real", model.complex_real, "float"), (f"{symbol}_coherent_imag", model.complex_imag, "float"), (f"{symbol}_power_gain", model.power_gain, "float"), (f"{symbol}_power_bias", model.power_bias, "float")]
         for index, (weight, bias) in enumerate(zip(model.conv_weights, model.conv_biases)):
             arrays += [(f"{symbol}_conv_weight{index}", weight, "float"), (f"{symbol}_conv_bias{index}", bias, "float")]
         for name in ("weight", "bias"):
@@ -96,8 +105,11 @@ def export_model(model: LatentAutoencoder | ConvLatentAutoencoder, output: Path,
         if frontend not in ("temporal", "iq"):
             raise ValueError("unsupported convolution frontend")
         enum = "OGAE_NORMALIZED_IQ" if frontend == "iq" else "OGAE_LOCAL_PRODUCTS"
-        extra_fields = ["    .kind = OGAE_TEMPORAL_CONV,", f"    .conv_frontend = {enum}, .conv_layers = {len(channels)},", f"    .conv_channels = {symbol}_conv_channels,", f"    .conv_weights = {symbol}_conv_weights, .conv_biases = {symbol}_conv_biases,"]
-        architecture = f"conv_{frontend}"
+        kind = "OGAE_COHERENT_CONV" if coherent else "OGAE_TEMPORAL_CONV"
+        extra_fields = [f"    .kind = {kind},", f"    .conv_frontend = {enum}, .conv_layers = {len(channels)},", f"    .conv_channels = {symbol}_conv_channels,", f"    .conv_weights = {symbol}_conv_weights, .conv_biases = {symbol}_conv_biases,"]
+        if coherent:
+            extra_fields += [f"    .coherent_channels = {len(model.complex_real)}, .coherent_kernel = {model.complex_real.shape[1]},", f"    .coherent_real = {symbol}_coherent_real, .coherent_imag = {symbol}_coherent_imag,", f"    .power_gain = {symbol}_power_gain, .power_bias = {symbol}_power_bias,"]
+        architecture = "coherent_conv" if coherent else f"conv_{frontend}"
     else:
         workspace_floats = 2 * samples + features + hidden + model.latent_dim
         angles = -2 * np.pi * np.arange(samples // 2) / samples
@@ -125,12 +137,12 @@ def export_model(model: LatentAutoencoder | ConvLatentAutoencoder, output: Path,
     rom_arrays = sum(np.asarray(array).size * (8 if ctype == "int64_t" else 2 if ctype == "uint16_t" else 4) for _, array, ctype in arrays)
     return {"architecture": architecture, "samples": samples, "features": features, "hidden": hidden, "latent": model.latent_dim, "references": len(model.prototypes), "classes": len(model.classes), "workspace_floats": workspace_floats, "workspace_bytes": 4 * workspace_floats, "caller_input_bytes": 2 * samples * 4, "caller_score_bytes": len(model.classes) * 4, "model_numeric_flash_bytes": rom_arrays, "descriptor_bytes": "ABI-dependent", "extra_pointer_table_entries": 2 * len(model.conv_weights) if convolution else 0, "stack_heap": "kernel uses no heap; compiler stack usage must be measured separately", "arithmetic": model.operation_counts(samples)}
 
-def export_golden(model: LatentAutoencoder | ConvLatentAutoencoder, iq: np.ndarray, output: Path, *, symbol: str = "ogae_exported", aligned_iq: np.ndarray | None = None, aligned_labels: np.ndarray | None = None) -> None:
+def export_golden(model: LatentAutoencoder | ConvLatentAutoencoder | CoherentAutoencoder, iq: np.ndarray, output: Path, *, symbol: str = "ogae_exported", aligned_iq: np.ndarray | None = None, aligned_labels: np.ndarray | None = None) -> None:
     symbol = _symbol(symbol)
     iq = np.asarray(iq, dtype=np.complex64)
     if iq.ndim != 2 or iq.shape[1] != 512 or not len(iq):
         raise ValueError("golden IQ must be a nonempty complex matrix with 512 samples")
-    if isinstance(model, ConvLatentAutoencoder):
+    if isinstance(model, (ConvLatentAutoencoder, CoherentAutoencoder)):
         features = model.extract_features(iq) if hasattr(model, "extract_features") else temporal_features(iq)
     else:
         features = spectral_features(iq, model.input_dim)
@@ -185,7 +197,10 @@ def main() -> None:
         parser.error("--cases must be between 1 and 4096")
     with np.load(args.model, allow_pickle=False) as data:
         metadata = json.loads(str(data["metadata"].item()))
-    model_class = ConvLatentAutoencoder if metadata.get("format") == "gcfcr-conv-latent-ae" else LatentAutoencoder
+    loaders = {"gcfcr-latent-ae": LatentAutoencoder, "gcfcr-conv-latent-ae": ConvLatentAutoencoder, "gcfcr-coherent-latent-ae": CoherentAutoencoder}
+    model_class = loaders.get(metadata.get("format"))
+    if model_class is None:
+        raise ValueError("unsupported embedded model artifact format")
     model = model_class.load(args.model)
     aligned_iq, aligned_labels = None, None
     if args.aligned_bank:

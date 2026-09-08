@@ -173,3 +173,54 @@ Three remaining protocol/API clarifications were requested:
 - The manifest must not claim a zero-reconstruction control when that weight
   was omitted, or inherit a stale control from a different frontend/backbone.
   Require the ablation or describe only the controls actually run.
+
+## Comparison assembly and coherent-filter review
+
+The three earlier integration clarifications are now implemented: training
+records start/end snapshots and source changes, convolution fitting requires a
+spectral base, and the CLI requires both zero and positive reconstruction
+weights. Historical exploratory runs without start snapshots still cannot claim
+an exact training-source attestation.
+
+The first comparison assembler could drop the spectral autoencoder when given
+only derived convolution experiments, and could overwrite a source's explicit
+test-used flag with false. Both were corrected during this audit. Independent
+disposable-artifact checks verified that a derived-only assembly retains the
+spectral control and rejects a source marked test-used. Assembly now records its
+own source hash and the source manifest/file for each selected model.
+
+Two failure-recovery/provenance requirements were sent before any real test
+selection was allowed: mark test evaluation durably before the first prediction,
+so a later evaluation/export exception cannot reopen tuning, and propagate/check
+inherited experiment provenance. Source artifacts must be hash-checked before
+inheritance, with the base manifest hash captured rather than only its path.
+These are safeguards against accidental workflow mistakes, not an assertion that
+local files are tamper-proof.
+
+The coherent first layer was reviewed as a tied complex-linear filter followed
+by magnitude squared. The tied block [A,-B; B,A] and absence of an additive complex
+bias preserve global-phase equivariance before power and invariance afterward.
+Post-power BatchNorm folds to a separate real gain and bias; a negative learned
+gain must not be folded into the complex kernel amplitude. This implementation
+keeps that signed affine stage after the square, as required.
+
+Four focused coherent-model tests passed. An additional independent fixture
+compared a complete Torch evaluation network with the folded NumPy runtime,
+including signed power gains, nontrivial tail BatchNorm running statistics,
+zero input, first/last-sample impulses, and random frames. Maximum latent
+absolute error was 1.788e-7, below the 5e-6 check tolerance. This establishes
+numerical Python export parity for that fixture; it does not establish coherent
+C export, physical MCU timing, or a radar accuracy advantage.
+
+For the default eight complex length-33 filters, the first stage alone requires
+67,584 complex MACs, conventionally 270,336 real MACs, before the real tail and
+matching. With five stride-two real tail stages, the receptive field spans 281
+samples. Circular shift invariance is exact only for multiples of 64 samples;
+global-phase invariance does not imply carrier-frequency invariance.
+
+A zero-reconstruction control supports a reconstruction-benefit claim only when
+its backbone, latent width, bank size, seed, minibatches, and selection budget
+match the positive-weight candidate. Selecting the best zero-weight control
+across a wider latent/bank grid is a useful performance baseline but is not by
+itself that matched ablation. The current single-width/single-bank validation
+runs avoid this ambiguity. No reviewer test used the reserved real test split.
