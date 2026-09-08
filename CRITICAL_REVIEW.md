@@ -141,3 +141,35 @@ first-best-validation-epoch selection, and explicit saved frontend selector are
 now implemented. Their classification benefit remains an empirical question for
 the frozen evaluation and matched controls. The original phase-local candidate
 and the raw-IQ variant must retain separate invariance claims.
+
+## Integrated CLI, API, and native benchmark audit
+
+A disposable synthetic end-to-end exercise passed base fitting, convolutional
+fitting with reconstruction and zero-weight control, evaluation, freezing, and
+rebuilding. It also verified explicit convolutional model dispatch, preservation
+of the raw-IQ frontend selector, ownership of replacement reference banks, and
+rejection of deliberately changed convolutional inference semantics before
+publishing a rebuilt bundle. These were small functional fixtures, not radar
+accuracy evidence; the reviewer did not open the reserved real test queries.
+
+The native C timing harness was inspected. It uses CLOCK_MONOTONIC, validates
+golden outputs before timing, rotates inputs, consumes outputs through volatile
+sinks, and reports the median of three trial means. The documentation correctly
+distinguishes this statistic from individual-frame p95 latency and makes no
+physical-MCU or C-versus-Python matched-filter speed claim. Compiled execution
+remains a CI requirement.
+
+Three remaining protocol/API clarifications were requested:
+
+- Training code provenance must capture a start snapshot as well as an end
+  snapshot. An end-of-training file hash may describe source edited while the
+  process was running, rather than the already imported code that trained the
+  model. Existing runs without a start snapshot must disclose that limitation.
+  Frozen numerical references protect later inference semantics but do not
+  establish historical training-source identity.
+- Reapplying fit-conv to a convolutional base must not rename that previous
+  model spectral_ae or overwrite the actual spectral control. Require a
+  spectral base or retain prior candidates with accurate, distinct names.
+- The manifest must not claim a zero-reconstruction control when that weight
+  was omitted, or inherit a stale control from a different frontend/backbone.
+  Require the ablation or describe only the controls actually run.

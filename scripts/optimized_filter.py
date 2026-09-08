@@ -82,6 +82,7 @@ def code_snapshot():
             "working_tree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())}
 
 def fit_experiment(args):
+    started_snapshot = code_snapshot()
     import torch
     torch.set_num_threads(args.threads)
     out = args.out
@@ -164,8 +165,9 @@ def fit_experiment(args):
                 "selection": "highest validation accuracy; ties favor lower estimated operations",
                 "test_used_for_selection": False, "seed": args.seed,
                 "training_versions": {"torch": torch.__version__, "numpy": np.__version__},
-                "code_snapshot": code_snapshot(),
+                "code_snapshot": code_snapshot(), "training_start_snapshot": started_snapshot,
                 "scope": "five-class frame discrimination, not universal known-signal detection superiority"}
+    manifest["training_sources_changed_during_run"] = started_snapshot["files"] != manifest["code_snapshot"]["files"]
     write_json(out / "validation_candidates.json", candidates)
     write_json(out / "experiment.json", manifest)
     print(json.dumps({name: row["validation_accuracy"] for name, row in models.items()}), flush=True)
@@ -173,6 +175,9 @@ def fit_experiment(args):
 
 def fit_conv_experiment(args):
     """Compare convolutional reconstruction and an identical-backbone ablation."""
+    started_snapshot = code_snapshot()
+    if 0 not in args.reconstruction_weights or not any(x > 0 for x in args.reconstruction_weights):
+        raise ValueError("include zero and a positive reconstruction weight for the ablation")
     import torch
     torch.set_num_threads(args.threads)
     source, out = args.base_experiment, args.out
@@ -181,6 +186,8 @@ def fit_conv_experiment(args):
     if out.exists():
         raise ValueError("choose a new output to preserve validation history")
     manifest = json.loads((source / "experiment.json").read_text())
+    if manifest["models"]["latent"]["kind"] != "latent":
+        raise ValueError("fit-conv base must be a spectral experiment; preserve convolution comparisons separately")
     data = data_from_config(manifest["data_config"], args.h5)
     if data.manifest != manifest["dataset"]:
         raise ValueError("data identity changed")
@@ -220,6 +227,8 @@ def fit_conv_experiment(args):
     manifest["models"]["latent"] = save_model(out, "latent", "conv", *best)
     manifest["training_versions"] = {"torch": torch.__version__, "numpy": np.__version__}
     manifest["code_snapshot"] = code_snapshot()
+    manifest["training_start_snapshot"] = started_snapshot
+    manifest["training_sources_changed_during_run"] = started_snapshot["files"] != manifest["code_snapshot"]["files"]
     manifest["inherited_validation_experiment"] = str(source)
     manifest["selection"] = "positive-reconstruction candidate with highest validation accuracy; ties lower operations; same-backbone zero-reconstruction control"
     write_json(out / "experiment.json", manifest)

@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import sys
 import unittest
 
 import numpy as np
@@ -17,7 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("export_embedded", ROOT / "scripts/export_embedded.py")
 EXPORT = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(EXPORT)
-COMPILER = shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
+NATIVE_CC = shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
+COMPILER = [NATIVE_CC] if NATIVE_CC else ([sys.executable, "-m", "ziglang", "cc"] if importlib.util.find_spec("ziglang") else None)
 
 
 def model(hidden: int = 48) -> LatentAutoencoder:
@@ -64,6 +66,7 @@ class EmbeddedTests(unittest.TestCase):
                     report = EXPORT.export_model(candidate, path)
                     self.assertEqual(report["workspace_bytes"], expected)
                     self.assertIn(enum, path.read_text())
+                    self.assertIn("ogae_exported_conv_biases[", path.read_text())
                     self.assertNotIn("twiddle_real[", path.read_text())
                     self.assertEqual(report["extra_pointer_table_entries"], 8)
                     EXPORT.export_golden(candidate, EXPORT.diagnostic_iq(8), Path(directory) / "ogae_golden.h")
@@ -78,9 +81,10 @@ class EmbeddedTests(unittest.TestCase):
                 labels = np.arange(5)
                 EXPORT.export_model(candidate, directory / "ogae_model.h", aligned_iq=refs, aligned_labels=labels)
                 EXPORT.export_golden(candidate, EXPORT.diagnostic_iq(16), directory / "ogae_golden.h", aligned_iq=refs, aligned_labels=labels)
-                executable = directory / "parity"
-                subprocess.run([COMPILER, "-std=c99", "-O2", "-Wall", "-Wextra", "-Werror", "-pedantic", "-I", str(ROOT / "embedded"), "-I", str(directory), str(ROOT / "embedded/ogae.c"), str(ROOT / "embedded/test_inference.c"), "-lm", "-o", str(executable)], check=True, capture_output=True, text=True)
-                result = subprocess.run([str(executable)], check=True, capture_output=True, text=True)
+                executable = directory / ("parity.exe" if sys.platform == "win32" else "parity")
+                subprocess.run([*COMPILER, "-std=c99", "-O2", "-Wall", "-Wextra", "-Werror", "-pedantic", "-I", str(ROOT / "embedded"), "-I", str(directory), str(ROOT / "embedded/ogae.c"), str(ROOT / "embedded/test_inference.c"), "-lm", "-o", str(executable)], check=True, text=True)
+                result = subprocess.run([str(executable)], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn("embedded parity passed", result.stdout)
 
 

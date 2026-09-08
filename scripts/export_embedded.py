@@ -90,7 +90,8 @@ def export_model(model: LatentAutoencoder | ConvLatentAutoencoder, output: Path,
             arrays += [(f"{symbol}_conv_weight{index}", weight, "float"), (f"{symbol}_conv_bias{index}", bias, "float")]
         for name in ("weight", "bias"):
             pointers = ", ".join(f"{symbol}_conv_{name}{index}" for index in range(len(channels)))
-            pointer_tables.append(f"static const float * const {symbol}_conv_{name}s[{len(channels)}] = {{ {pointers} }};")
+            plural = "weights" if name == "weight" else "biases"
+            pointer_tables.append(f"static const float * const {symbol}_conv_{plural}[{len(channels)}] = {{ {pointers} }};")
         frontend = getattr(model, "frontend", "temporal")
         if frontend not in ("temporal", "iq"):
             raise ValueError("unsupported convolution frontend")
