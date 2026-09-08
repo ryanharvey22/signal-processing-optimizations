@@ -1,0 +1,913 @@
+{
+  "environment": {
+    "platform": "Linux-6.17.0-1022-azure-aarch64-with-glibc2.39",
+    "machine": "aarch64",
+    "processor": "0xd49",
+    "python": "3.12.14 (main, Aug 13 2026, 02:48:06) [GCC 13.3.0]",
+    "numpy": "2.5.3",
+    "threadpools": [
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "filepath": "/opt/hostedtoolcache/Python/3.12.14/arm64/lib/python3.12/site-packages/numpy.libs/libscipy_openblas64_-f552eb69.so",
+        "version": "0.3.34.106.0",
+        "threading_layer": "pthreads",
+        "architecture": "neoversev2"
+      }
+    ],
+    "numpy_runtime": "[{'numpy_version': '2.5.3',\n  'python': '3.12.14 (main, Aug 13 2026, 02:48:06) [GCC 13.3.0]',\n  'uname': uname_result(system='Linux', node='runnervmfx5wp', release='6.17.0-1022-azure', version='#22-Ubuntu SMP Mon Jul 27 17:12:01 UTC 2026', machine='aarch64')},\n {'simd_extensions': {'baseline': ['NEON', 'NEON_FP16', 'NEON_VFPV4', 'ASIMD'],\n                      'found': ['ASIMDHP', 'ASIMDDP', 'ASIMDFHM', 'SVE'],\n                      'not_found': []}},\n {'ignore_floating_point_errors_in_matmul': False},\n {'architecture': 'neoversev2',\n  'filepath': '/opt/hostedtoolcache/Python/3.12.14/arm64/lib/python3.12/site-packages/numpy.libs/libscipy_openblas64_-f552eb69.so',\n  'internal_api': 'openblas',\n  'num_threads': 1,\n  'prefix': 'libscipy_openblas',\n  'threading_layer': 'pthreads',\n  'user_api': 'blas',\n  'version': '0.3.34.106.0'}]\n",
+    "pid": 2279
+  },
+  "bundle_sha256": "603ff7f1eb87e83773b1d890bf65965733968077ca0126a50379a2c6e12cd5f0",
+  "queries_sha256": "ad2d91526136ca8587e19894a041fe0e427a1cbf97051503e15fb636232a1597",
+  "results": {
+    "encoder_candidate_0": {
+      "accuracy": 0.7412,
+      "frozen_accuracy": 0.7412,
+      "storage_bytes": 29544,
+      "operations": {
+        "fft_real_ops_estimate": 23040,
+        "frontend_add_multiply_ops": 2175,
+        "frontend_divisions": 128,
+        "frontend_log1p": 128,
+        "input_finiteness_checks": 1024,
+        "real_flops_estimate": 39854,
+        "special_function_evaluations": 129,
+        "encoder_macs": 6912,
+        "matching_macs": 320,
+        "affine_and_matching_real_ops": 14464,
+        "relu_comparisons": 48,
+        "latent_norm_add_multiply_ops": 31,
+        "latent_norm_sqrt": 1,
+        "latent_norm_divisions": 16,
+        "class_max_comparisons": 15,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 1.1026859283447266e-06,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 67.37049999999999,
+          "batch1_p95_us": 86.8614,
+          "batch_frames_per_second": 112434.36204918653
+        },
+        {
+          "batch1_p50_us": 67.326,
+          "batch1_p95_us": 85.2666,
+          "batch_frames_per_second": 112423.3512083534
+        },
+        {
+          "batch1_p50_us": 67.194,
+          "batch1_p95_us": 83.6538,
+          "batch_frames_per_second": 113725.16093665108
+        }
+      ],
+      "batch1_p50_us": 67.326,
+      "batch1_p95_us": 85.2666,
+      "batch_frames_per_second": 112434.36204918653,
+      "batch_size": 128
+    },
+    "linear": {
+      "accuracy": 0.6976,
+      "frozen_accuracy": 0.6976,
+      "storage_bytes": 2620,
+      "operations": {
+        "fft_real_ops_estimate": 23040,
+        "frontend_add_multiply_ops": 2175,
+        "frontend_divisions": 128,
+        "frontend_log1p": 128,
+        "input_finiteness_checks": 1024,
+        "encoder_macs": 640,
+        "affine_real_ops": 1280,
+        "class_argmax_comparisons": 4,
+        "relu_comparisons": 0,
+        "real_flops_estimate": 26623,
+        "special_function_evaluations": 128
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 2.86102294921875e-06,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 35.213499999999996,
+          "batch1_p95_us": 45.5916,
+          "batch_frames_per_second": 124812.47656718885
+        },
+        {
+          "batch1_p50_us": 35.125,
+          "batch1_p95_us": 43.607,
+          "batch_frames_per_second": 124935.39717499595
+        },
+        {
+          "batch1_p50_us": 35.053,
+          "batch1_p95_us": 41.12984999999999,
+          "batch_frames_per_second": 125568.79968490079
+        }
+      ],
+      "batch1_p50_us": 35.125,
+      "batch1_p95_us": 43.607,
+      "batch_frames_per_second": 124935.39717499595,
+      "batch_size": 128
+    },
+    "classifier": {
+      "accuracy": 0.7412,
+      "frozen_accuracy": 0.7412,
+      "storage_bytes": 25788,
+      "operations": {
+        "fft_real_ops_estimate": 23040,
+        "frontend_add_multiply_ops": 2175,
+        "frontend_divisions": 128,
+        "frontend_log1p": 128,
+        "input_finiteness_checks": 1024,
+        "encoder_macs": 6384,
+        "affine_real_ops": 12768,
+        "class_argmax_comparisons": 4,
+        "relu_comparisons": 48,
+        "real_flops_estimate": 38111,
+        "special_function_evaluations": 128
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 1.33514404296875e-05,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 40.0775,
+          "batch1_p95_us": 56.907199999999996,
+          "batch_frames_per_second": 119672.24763179841
+        },
+        {
+          "batch1_p50_us": 40.5055,
+          "batch1_p95_us": 45.69659999999999,
+          "batch_frames_per_second": 119328.7385553951
+        },
+        {
+          "batch1_p50_us": 39.992999999999995,
+          "batch1_p95_us": 48.52304999999999,
+          "batch_frames_per_second": 120471.211850979
+        }
+      ],
+      "batch1_p50_us": 40.0775,
+      "batch1_p95_us": 48.52304999999999,
+      "batch_frames_per_second": 119672.24763179841,
+      "batch_size": 128
+    },
+    "mf_aligned": {
+      "accuracy": 0.7542,
+      "frozen_accuracy": 0.7542,
+      "storage_bytes": 42024960,
+      "operations": {
+        "real_flops_estimate": 20976640,
+        "fft_flops_estimate": 0,
+        "comparisons": 5124,
+        "special_function_evaluations": 0,
+        "convention": "multiply and add each 1 FLOP; complex dot 8N-2; complex FFT estimated 5Nlog2N; magnitude squared 3"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": false,
+      "full_score_max_absolute_residual": null,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 6204.8925,
+          "batch1_p95_us": 6309.4860499999995,
+          "batch_frames_per_second": 741.8739080561529
+        },
+        {
+          "batch1_p50_us": 6191.438,
+          "batch1_p95_us": 6336.583799999999,
+          "batch_frames_per_second": 700.0202584769021
+        },
+        {
+          "batch1_p50_us": 6238.139499999999,
+          "batch1_p95_us": 6379.85985,
+          "batch_frames_per_second": 686.2177593954932
+        }
+      ],
+      "batch1_p50_us": 6204.8925,
+      "batch1_p95_us": 6336.583799999999,
+      "batch_frames_per_second": 700.0202584769021,
+      "batch_size": 128
+    },
+    "mf_fft": {
+      "accuracy": 0.848,
+      "frozen_accuracy": 0.848,
+      "storage_bytes": 62996480,
+      "operations": {
+        "real_flops_estimate": 141580800,
+        "fft_flops_estimate": 117987840,
+        "comparisons": 2621444,
+        "special_function_evaluations": 0,
+        "convention": "multiply and add each 1 FLOP; complex dot 8N-2; complex FFT estimated 5Nlog2N; magnitude squared 3"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": false,
+      "full_score_max_absolute_residual": null,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 21242.853000000003,
+          "batch1_p95_us": 21521.694,
+          "batch_frames_per_second": 64.18721351377093
+        },
+        {
+          "batch1_p50_us": 21040.751,
+          "batch1_p95_us": 21460.02545,
+          "batch_frames_per_second": 63.94922322961889
+        },
+        {
+          "batch1_p50_us": 21365.406,
+          "batch1_p95_us": 21654.25435,
+          "batch_frames_per_second": 64.00898004384179
+        }
+      ],
+      "batch1_p50_us": 21242.853000000003,
+      "batch1_p95_us": 21521.694,
+      "batch_frames_per_second": 64.00898004384179,
+      "batch_size": 128
+    },
+    "spectral": {
+      "accuracy": 0.6104,
+      "frozen_accuracy": 0.6104,
+      "storage_bytes": 11424,
+      "operations": {
+        "real_flops_estimate": 30826,
+        "fft_flops_estimate": 23040,
+        "comparisons": 24,
+        "special_function_evaluations": 129,
+        "convention": "multiply/add/divide each 1 FLOP; complex FFT estimated 5Nlog2N; log1p and sqrt counted separately"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 8.344650268554688e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 62.638000000000005,
+          "batch1_p95_us": 82.98564999999999,
+          "batch_frames_per_second": 116258.26410062882
+        },
+        {
+          "batch1_p50_us": 62.013999999999996,
+          "batch1_p95_us": 76.65285,
+          "batch_frames_per_second": 117830.46497466414
+        },
+        {
+          "batch1_p50_us": 63.006,
+          "batch1_p95_us": 85.73139999999998,
+          "batch_frames_per_second": 114810.66555204646
+        }
+      ],
+      "batch1_p50_us": 62.638000000000005,
+      "batch1_p95_us": 82.98564999999999,
+      "batch_frames_per_second": 116258.26410062882,
+      "batch_size": 128
+    },
+    "pca": {
+      "accuracy": 0.6272,
+      "frozen_accuracy": 0.6272,
+      "storage_bytes": 10656,
+      "operations": {
+        "real_flops_estimate": 30218,
+        "fft_flops_estimate": 23040,
+        "comparisons": 24,
+        "special_function_evaluations": 129,
+        "convention": "multiply/add/divide each 1 FLOP; complex FFT estimated 5Nlog2N; log1p and sqrt counted separately"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 3.5762786865234375e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 64.714,
+          "batch1_p95_us": 83.36619999999999,
+          "batch_frames_per_second": 115560.07363343441
+        },
+        {
+          "batch1_p50_us": 64.314,
+          "batch1_p95_us": 80.22654999999999,
+          "batch_frames_per_second": 117831.33273220943
+        },
+        {
+          "batch1_p50_us": 64.5625,
+          "batch1_p95_us": 85.04179999999998,
+          "batch_frames_per_second": 116151.81768520316
+        }
+      ],
+      "batch1_p50_us": 64.5625,
+      "batch1_p95_us": 83.36619999999999,
+      "batch_frames_per_second": 116151.81768520316,
+      "batch_size": 128
+    },
+    "spectral_standardized": {
+      "accuracy": 0.6028,
+      "frozen_accuracy": 0.603,
+      "storage_bytes": 11424,
+      "operations": {
+        "real_flops_estimate": 31082,
+        "fft_flops_estimate": 23040,
+        "comparisons": 24,
+        "special_function_evaluations": 129,
+        "convention": "multiply/add/divide each 1 FLOP; complex FFT estimated 5Nlog2N; log1p and sqrt counted separately"
+      },
+      "golden_predictions_equal": false,
+      "parity_status": "auxiliary_near_tie_disagreement",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 6.556510925292969e-07,
+      "disagreements": [
+        {
+          "query_index": 2081,
+          "source_row_id": 37180,
+          "frozen_label": 3,
+          "native_label": 1,
+          "reference_margin": 1.1920928955078125e-07,
+          "native_margin": 0.0,
+          "allowed_two_score_perturbation": 0.0004567289328575134
+        }
+      ],
+      "trials": [
+        {
+          "batch1_p50_us": 64.17,
+          "batch1_p95_us": 80.84379999999999,
+          "batch_frames_per_second": 114377.06275234996
+        },
+        {
+          "batch1_p50_us": 64.166,
+          "batch1_p95_us": 78.06405000000001,
+          "batch_frames_per_second": 115312.5104164133
+        },
+        {
+          "batch1_p50_us": 64.1625,
+          "batch1_p95_us": 87.69099999999999,
+          "batch_frames_per_second": 115396.56073172238
+        }
+      ],
+      "batch1_p50_us": 64.166,
+      "batch1_p95_us": 80.84379999999999,
+      "batch_frames_per_second": 115312.5104164133,
+      "batch_size": 128
+    },
+    "pca_standardized": {
+      "accuracy": 0.5734,
+      "frozen_accuracy": 0.5734,
+      "storage_bytes": 10656,
+      "operations": {
+        "real_flops_estimate": 30346,
+        "fft_flops_estimate": 23040,
+        "comparisons": 24,
+        "special_function_evaluations": 129,
+        "convention": "multiply/add/divide each 1 FLOP; complex FFT estimated 5Nlog2N; log1p and sqrt counted separately"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 4.172325134277344e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 65.194,
+          "batch1_p95_us": 81.0282,
+          "batch_frames_per_second": 115236.72594455854
+        },
+        {
+          "batch1_p50_us": 65.13,
+          "batch1_p95_us": 81.94699999999999,
+          "batch_frames_per_second": 116818.80490711992
+        },
+        {
+          "batch1_p50_us": 64.87049999999999,
+          "batch1_p95_us": 78.08579999999999,
+          "batch_frames_per_second": 116690.15663830245
+        }
+      ],
+      "batch1_p50_us": 65.13,
+      "batch1_p95_us": 81.0282,
+      "batch_frames_per_second": 116690.15663830245,
+      "batch_size": 128
+    },
+    "encoder_candidate_1": {
+      "accuracy": 0.713,
+      "frozen_accuracy": 0.713,
+      "storage_bytes": 137128,
+      "operations": {
+        "fft_real_ops_estimate": 23040,
+        "frontend_add_multiply_ops": 2559,
+        "frontend_divisions": 512,
+        "frontend_log1p": 512,
+        "input_finiteness_checks": 1024,
+        "real_flops_estimate": 94382,
+        "special_function_evaluations": 513,
+        "encoder_macs": 33792,
+        "matching_macs": 320,
+        "affine_and_matching_real_ops": 68224,
+        "relu_comparisons": 64,
+        "latent_norm_add_multiply_ops": 31,
+        "latent_norm_sqrt": 1,
+        "latent_norm_divisions": 16,
+        "class_max_comparisons": 15,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 1.7434358596801758e-06,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 76.531,
+          "batch1_p95_us": 97.6026,
+          "batch_frames_per_second": 69643.60429592221
+        },
+        {
+          "batch1_p50_us": 76.4705,
+          "batch1_p95_us": 92.45859999999999,
+          "batch_frames_per_second": 69424.030043249
+        },
+        {
+          "batch1_p50_us": 76.54249999999999,
+          "batch1_p95_us": 96.68554999999999,
+          "batch_frames_per_second": 69684.30559725575
+        }
+      ],
+      "batch1_p50_us": 76.531,
+      "batch1_p95_us": 96.68554999999999,
+      "batch_frames_per_second": 69643.60429592221,
+      "batch_size": 128
+    },
+    "no_reconstruction_2": {
+      "accuracy": 0.7818,
+      "frozen_accuracy": 0.7818,
+      "storage_bytes": 17592,
+      "operations": {
+        "real_flops_estimate": 589519,
+        "special_function_evaluations": 2,
+        "frontend_real_ops": 4096,
+        "encoder_macs": 292352,
+        "matching_macs": 80,
+        "relu_comparisons": 6656,
+        "pool_max_comparisons": 496,
+        "class_max_comparisons": 0,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0,
+        "fft_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "largest_numpy_patch_payload_bytes": 983040,
+        "direct_c_activation_payload_bytes_estimate": 20480,
+        "scratch_note": "NumPy also allocates padding, outputs and BLAS workspace; C estimate excludes input/output and stack"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 5.960464477539062e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 327.4945,
+          "batch1_p95_us": 379.4706,
+          "batch_frames_per_second": 14518.072306238319
+        },
+        {
+          "batch1_p50_us": 331.10249999999996,
+          "batch1_p95_us": 364.98505,
+          "batch_frames_per_second": 14574.468503007949
+        },
+        {
+          "batch1_p50_us": 328.683,
+          "batch1_p95_us": 366.07644999999997,
+          "batch_frames_per_second": 14629.287845696213
+        }
+      ],
+      "batch1_p50_us": 328.683,
+      "batch1_p95_us": 366.07644999999997,
+      "batch_frames_per_second": 14574.468503007949,
+      "batch_size": 128
+    },
+    "encoder_candidate_2": {
+      "accuracy": 0.7938,
+      "frozen_accuracy": 0.7938,
+      "storage_bytes": 17592,
+      "operations": {
+        "real_flops_estimate": 589519,
+        "special_function_evaluations": 2,
+        "frontend_real_ops": 4096,
+        "encoder_macs": 292352,
+        "matching_macs": 80,
+        "relu_comparisons": 6656,
+        "pool_max_comparisons": 496,
+        "class_max_comparisons": 0,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0,
+        "fft_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "largest_numpy_patch_payload_bytes": 983040,
+        "direct_c_activation_payload_bytes_estimate": 20480,
+        "scratch_note": "NumPy also allocates padding, outputs and BLAS workspace; C estimate excludes input/output and stack"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 7.003545761108398e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 332.571,
+          "batch1_p95_us": 382.14340000000004,
+          "batch_frames_per_second": 14562.120727148123
+        },
+        {
+          "batch1_p50_us": 331.39,
+          "batch1_p95_us": 361.0998,
+          "batch_frames_per_second": 14544.757884608141
+        },
+        {
+          "batch1_p50_us": 327.6835,
+          "batch1_p95_us": 373.419,
+          "batch_frames_per_second": 14656.002440224407
+        }
+      ],
+      "batch1_p50_us": 331.39,
+      "batch1_p95_us": 373.419,
+      "batch_frames_per_second": 14562.120727148123,
+      "batch_size": 128
+    },
+    "no_reconstruction_3": {
+      "accuracy": 0.817,
+      "frozen_accuracy": 0.817,
+      "storage_bytes": 27960,
+      "operations": {
+        "real_flops_estimate": 650575,
+        "special_function_evaluations": 2,
+        "frontend_real_ops": 4096,
+        "encoder_macs": 323072,
+        "matching_macs": 80,
+        "relu_comparisons": 7040,
+        "pool_max_comparisons": 112,
+        "class_max_comparisons": 0,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0,
+        "fft_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "largest_numpy_patch_payload_bytes": 983040,
+        "direct_c_activation_payload_bytes_estimate": 20480,
+        "scratch_note": "NumPy also allocates padding, outputs and BLAS workspace; C estimate excludes input/output and stack"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 4.172325134277344e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 415.998,
+          "batch1_p95_us": 466.27515,
+          "batch_frames_per_second": 12881.853227686708
+        },
+        {
+          "batch1_p50_us": 411.817,
+          "batch1_p95_us": 460.3748,
+          "batch_frames_per_second": 12852.68314822457
+        },
+        {
+          "batch1_p50_us": 413.227,
+          "batch1_p95_us": 457.9812,
+          "batch_frames_per_second": 12984.239213102357
+        }
+      ],
+      "batch1_p50_us": 413.227,
+      "batch1_p95_us": 460.3748,
+      "batch_frames_per_second": 12881.853227686708,
+      "batch_size": 128
+    },
+    "encoder_candidate_3": {
+      "accuracy": 0.8066,
+      "frozen_accuracy": 0.8066,
+      "storage_bytes": 27960,
+      "operations": {
+        "real_flops_estimate": 650575,
+        "special_function_evaluations": 2,
+        "frontend_real_ops": 4096,
+        "encoder_macs": 323072,
+        "matching_macs": 80,
+        "relu_comparisons": 7040,
+        "pool_max_comparisons": 112,
+        "class_max_comparisons": 0,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0,
+        "fft_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "largest_numpy_patch_payload_bytes": 983040,
+        "direct_c_activation_payload_bytes_estimate": 20480,
+        "scratch_note": "NumPy also allocates padding, outputs and BLAS workspace; C estimate excludes input/output and stack"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 3.5762786865234375e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 411.733,
+          "batch1_p95_us": 463.18835,
+          "batch_frames_per_second": 13053.841743075409
+        },
+        {
+          "batch1_p50_us": 413.389,
+          "batch1_p95_us": 469.0998,
+          "batch_frames_per_second": 12802.43886460371
+        },
+        {
+          "batch1_p50_us": 407.994,
+          "batch1_p95_us": 453.96945,
+          "batch_frames_per_second": 13003.888619865298
+        }
+      ],
+      "batch1_p50_us": 411.733,
+      "batch1_p95_us": 463.18835,
+      "batch_frames_per_second": 13003.888619865298,
+      "batch_size": 128
+    },
+    "no_reconstruction_4": {
+      "accuracy": 0.8012,
+      "frozen_accuracy": 0.8012,
+      "storage_bytes": 30376,
+      "operations": {
+        "real_flops_estimate": 944464,
+        "special_function_evaluations": 2,
+        "coherent_complex_macs": 67584,
+        "tail_projection_real_macs": 195072,
+        "matching_macs": 80,
+        "first_kernel_samples": 33,
+        "receptive_field_samples": 281,
+        "fft_runtime_ops": 0,
+        "decoder_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "direct_c_activation_payload_bytes_estimate": 14336,
+        "scratch_note": "direct activation estimate excludes retained IQ features, pooling, latent, input/output and stack; NumPy GEMM allocates patches"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 8.791685104370117e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 437.206,
+          "batch1_p95_us": 476.01025,
+          "batch_frames_per_second": 12149.128655950439
+        },
+        {
+          "batch1_p50_us": 430.09749999999997,
+          "batch1_p95_us": 490.3867,
+          "batch_frames_per_second": 11954.789786929688
+        },
+        {
+          "batch1_p50_us": 427.2265,
+          "batch1_p95_us": 471.40375,
+          "batch_frames_per_second": 12174.993656875864
+        }
+      ],
+      "batch1_p50_us": 430.09749999999997,
+      "batch1_p95_us": 476.01025,
+      "batch_frames_per_second": 12149.128655950439,
+      "batch_size": 128
+    },
+    "encoder_candidate_4": {
+      "accuracy": 0.8212,
+      "frozen_accuracy": 0.8212,
+      "storage_bytes": 30376,
+      "operations": {
+        "real_flops_estimate": 944464,
+        "special_function_evaluations": 2,
+        "coherent_complex_macs": 67584,
+        "tail_projection_real_macs": 195072,
+        "matching_macs": 80,
+        "first_kernel_samples": 33,
+        "receptive_field_samples": 281,
+        "fft_runtime_ops": 0,
+        "decoder_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "direct_c_activation_payload_bytes_estimate": 14336,
+        "scratch_note": "direct activation estimate excludes retained IQ features, pooling, latent, input/output and stack; NumPy GEMM allocates patches"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 4.76837158203125e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 432.6025,
+          "batch1_p95_us": 474.81080000000003,
+          "batch_frames_per_second": 12026.003978728255
+        },
+        {
+          "batch1_p50_us": 436.395,
+          "batch1_p95_us": 488.7876,
+          "batch_frames_per_second": 12177.461383652633
+        },
+        {
+          "batch1_p50_us": 436.379,
+          "batch1_p95_us": 482.89885,
+          "batch_frames_per_second": 12032.494126403795
+        }
+      ],
+      "batch1_p50_us": 436.379,
+      "batch1_p95_us": 482.89885,
+      "batch_frames_per_second": 12032.494126403795,
+      "batch_size": 128
+    },
+    "encoder_no_reconstruction": {
+      "accuracy": 0.823,
+      "frozen_accuracy": 0.823,
+      "storage_bytes": 50984,
+      "operations": {
+        "real_flops_estimate": 2666832,
+        "special_function_evaluations": 2,
+        "coherent_complex_macs": 266240,
+        "tail_projection_real_macs": 256512,
+        "matching_macs": 80,
+        "first_kernel_samples": 65,
+        "receptive_field_samples": 313,
+        "fft_runtime_ops": 0,
+        "decoder_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "direct_c_activation_payload_bytes_estimate": 22528,
+        "scratch_note": "direct activation estimate excludes retained IQ features, pooling, latent, input/output and stack; NumPy GEMM allocates patches"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 5.443580448627472e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 512.281,
+          "batch1_p95_us": 554.902,
+          "batch_frames_per_second": 7463.268547206267
+        },
+        {
+          "batch1_p50_us": 506.49300000000005,
+          "batch1_p95_us": 550.5301999999999,
+          "batch_frames_per_second": 7506.972320473469
+        },
+        {
+          "batch1_p50_us": 518.826,
+          "batch1_p95_us": 563.4852,
+          "batch_frames_per_second": 7496.013058054747
+        }
+      ],
+      "batch1_p50_us": 512.281,
+      "batch1_p95_us": 554.902,
+      "batch_frames_per_second": 7496.013058054747,
+      "batch_size": 128
+    },
+    "latent": {
+      "accuracy": 0.8266,
+      "frozen_accuracy": 0.8266,
+      "storage_bytes": 50984,
+      "operations": {
+        "real_flops_estimate": 2666832,
+        "special_function_evaluations": 2,
+        "coherent_complex_macs": 266240,
+        "tail_projection_real_macs": 256512,
+        "matching_macs": 80,
+        "first_kernel_samples": 65,
+        "receptive_field_samples": 313,
+        "fft_runtime_ops": 0,
+        "decoder_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "direct_c_activation_payload_bytes_estimate": 22528,
+        "scratch_note": "direct activation estimate excludes retained IQ features, pooling, latent, input/output and stack; NumPy GEMM allocates patches"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": false,
+      "full_score_max_absolute_residual": null,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 517.649,
+          "batch1_p95_us": 557.9079999999999,
+          "batch_frames_per_second": 7480.011349748471
+        },
+        {
+          "batch1_p50_us": 509.96500000000003,
+          "batch1_p95_us": 547.38285,
+          "batch_frames_per_second": 7478.177669758356
+        },
+        {
+          "batch1_p50_us": 507.7375,
+          "batch1_p95_us": 546.9205999999999,
+          "batch_frames_per_second": 7468.731397461494
+        }
+      ],
+      "batch1_p50_us": 509.96500000000003,
+      "batch1_p95_us": 547.38285,
+      "batch_frames_per_second": 7478.177669758356,
+      "batch_size": 128
+    }
+  },
+  "trial_orders": [
+    [
+      "encoder_candidate_0",
+      "linear",
+      "classifier",
+      "mf_aligned",
+      "mf_fft",
+      "spectral",
+      "pca",
+      "spectral_standardized",
+      "pca_standardized",
+      "encoder_candidate_1",
+      "no_reconstruction_2",
+      "encoder_candidate_2",
+      "no_reconstruction_3",
+      "encoder_candidate_3",
+      "no_reconstruction_4",
+      "encoder_candidate_4",
+      "encoder_no_reconstruction",
+      "latent"
+    ],
+    [
+      "latent",
+      "encoder_no_reconstruction",
+      "encoder_candidate_4",
+      "no_reconstruction_4",
+      "encoder_candidate_3",
+      "no_reconstruction_3",
+      "encoder_candidate_2",
+      "no_reconstruction_2",
+      "encoder_candidate_1",
+      "pca_standardized",
+      "spectral_standardized",
+      "pca",
+      "spectral",
+      "mf_fft",
+      "mf_aligned",
+      "classifier",
+      "linear",
+      "encoder_candidate_0"
+    ],
+    [
+      "encoder_candidate_0",
+      "linear",
+      "classifier",
+      "mf_aligned",
+      "mf_fft",
+      "spectral",
+      "pca",
+      "spectral_standardized",
+      "pca_standardized",
+      "encoder_candidate_1",
+      "no_reconstruction_2",
+      "encoder_candidate_2",
+      "no_reconstruction_3",
+      "encoder_candidate_3",
+      "no_reconstruction_4",
+      "encoder_candidate_4",
+      "encoder_no_reconstruction",
+      "latent"
+    ]
+  ],
+  "exact_primary_parity": true,
+  "all_predictions_exact": false,
+  "auxiliary_approximate_numeric_agreement": true,
+  "post_freeze_replay_metadata_sha256": "c499a35775cab038ec7072a613694623651a3ab41c58883cdc7780569c3a6317",
+  "benchmark_code_snapshot": {
+    "files": {
+      "gcfcr/optimized/__init__.py": "b970f1478745fd05a1d12c07a352cce636d0220c8e69265c4382488554cab47e",
+      "gcfcr/optimized/api.py": "152236e1e17b466e21fe1cd80b647a149c73df12abac989bd38925896e0581af",
+      "gcfcr/optimized/autoencoder.py": "989a068377c5a3ab6ac3ce3b8b06fcbf22768b6eeca5c455b5deb1879d5ba5c9",
+      "gcfcr/optimized/baselines.py": "712334d22675b7ce5fb86e1a03d258fedae79e138fc85946ba84bcd0376a073c",
+      "gcfcr/optimized/classifier.py": "78cb5f8f8ca29f7cee1c37eafa9fb8266e051e3b3167034b42bb27fa25ed6b2d",
+      "gcfcr/optimized/coherent_autoencoder.py": "d17b329c1328ce0fa98bb894666bef594be6fee6f14dd3ae576be88805e6938f",
+      "gcfcr/optimized/conv_autoencoder.py": "4408b7c4c90d08433e95b5418ad6064e2aacd876f0d69b849a2ea1b70ddc7c8b",
+      "gcfcr/optimized/data.py": "19a8bf6f2217c3c089340837733827fdc6774956780c585a791b53727a8146ed",
+      "gcfcr/optimized/features.py": "6d5376cfd87b4dfd70af414043152ba842b18d9f693f1eea72576251497d4d5f",
+      "gcfcr/optimized/metrics.py": "bf4b6357e75e1e9d3b0d7f7a3239974ea6d43c05e5bf85c77681318b77b8d95e",
+      "scripts/optimized_filter.py": "b4f59c2cbde9b5dd97be4bdea48624a979b7ac7c8486ffc780a87c28ad5b0cbe",
+      "scripts/numerical_verification.py": "6311d4b5a502cbe43a743f2fc10076aafb9845916707254d857489f8358f027b"
+    },
+    "git_revision": "5b6e05aa4d150e5ed6c201d6b9c3ecd1699e88b9",
+    "working_tree_dirty": false
+  },
+  "primary_comparator": "mf_fft",
+  "matched_filter_latency_gate": true,
+  "measurement": "wall-clock input-IQ through prediction; warm caches; alternating 3 trials; includes Python/FFT/BLAS",
+  "hardware_microcontroller_measurement": false
+}

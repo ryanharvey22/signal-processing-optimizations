@@ -82,8 +82,9 @@ explicit signed power gain/bias and ReLU follow. Five real convolution stages us
 channels 12/16/16/16/16, kernel five, stride two, circular padding and folded
 normalization. Global mean/max pooling produces 32 features, projected into a
 normalized **16-dimensional code**. Cosine matching uses **five training-derived
-prototypes**, one per class. The receptive field is 313 samples; exact circular
-shift invariance holds for multiples of the total stride, 64 samples.
+prototypes**, one per class. The receptive field is 313 samples; analytic circular
+shift invariance holds for multiples of the total stride, 64 samples, subject to
+floating-point rounding.
 
 Training used 60 epochs, batch size 128 and seed 42. A decoder with reconstruction
 weight 0.01 learns 128 normalized spectral features. Reconstruction is lossy and
@@ -153,19 +154,107 @@ the extra validation reports explicitly record that test IQ was not loaded.
 
 ## Architecture measurements
 
-Frozen-artifact measurements are being collected. This table intentionally has no
-latency or throughput values until the associated run artifacts are available.
+The same frozen model was measured on Windows x86-64, Linux x86-64, and Linux
+AArch64. All native timings use warm caches.
 
-| Target | Required evidence | Measurement status |
-|---|---|---|
-| Native x86-64 | Same frozen weights/queries, parity, compiler/CPU settings, complete-call timing | Pending |
-| Native AArch64 | Same frozen weights/queries, parity, compiler/CPU settings, complete-call timing | Pending |
-| Cortex-M4F/M7 | Cross-build and supported QEMU functional execution | Pending frozen-model run report; emulator timing is not physical timing |
-| Cortex-M33 | Cross-build with explicit FPU/startup assumptions | Pending frozen-model build report |
-| Physical Cortex-M board | Exact chip, placement/cache settings, cycles and energy where measured | Not measured |
+| Windows x86-64, Ryzen 7 6800H | Full IQ-to-label latency | Throughput |
+|---|---:|---:|
+| Selected model, C99 / Clang 21.1.0 | 526.33 us, median of three trial means | 1,900 frames/s |
+| Selected model, NumPy / one BLAS thread | 530.45 us, batch-1 p50 | 5,933 frames/s at batch 128 |
+| FFT matched-filter control, NumPy / one BLAS thread | 27,905.65 us, batch-1 p50 | 56.36 frames/s at batch 128 |
+
+The C timing uses 10,000 calls per trial over eight frozen cases, after 100 warmup
+calls. It is not a p50 over individual calls. Python uses 100 timed single-frame
+calls per trial, three alternating method orders, and separate batch-128 trials.
+The Python paths give a 52.6x batch-1 median latency ratio on this host. Comparing
+the C model to Python/NumPy matching would also compare implementations and
+runtime overhead; it is not an isolated algorithm or ISA speedup. The C report
+includes exact compiled source hashes; the local Python report discloses an
+end-of-run source snapshot limitation. Raw evidence:
+[Windows C](architecture_results/windows-c.json) and
+[Windows Python](architecture_results/windows-python.json).
+
+| Linux runner | Selected C, median trial mean | Selected NumPy, batch-1 p50 | FFT control NumPy, batch-1 p50 | Selected / FFT batch-128 frames/s |
+|---|---:|---:|---:|---:|
+| x86-64, AMD EPYC 9V74 | 726.02 us | 559.38 us | 21,556.04 us | 8,735 / 75.66 |
+| AArch64, CPU part 0xd49 | 469.91 us | 509.97 us | 21,242.85 us | 7,478 / 64.01 |
+
+Both Linux Python runs reproduced all 5,000 frozen predictions exactly for the
+selected model and both waveform matched filters. The selected model's batch-1
+median latency was 38.5x lower than the FFT control on x86-64 and 41.7x lower on
+AArch64. These are comparisons of the tested NumPy implementations on each host,
+not hardware-counter FLOP/s. Python includes FFT/BLAS and interpreter overhead.
+Portable C is slower than NumPy for this model on the tested Linux x86-64 runner;
+it is supplied for allocation-free deployment and does not universally win latency.
+The hosts and compilers differ, so the cross-host ratio does not isolate ISA effects.
+
+C parity checks eight frozen cases, including intermediate features, codes,
+scores and labels. C timings use three trials of 1,000 full calls on Linux, after
+100 warmups, with GCC 13. NumPy timings cover three method-order trials with 100
+single-frame calls per method and separate batch-128 timing. The one auxiliary
+near-tie described below also occurs on both Linux CPUs; all other models'
+predictions are exact. The checked-in architecture reports retain trial values,
+hardware/runtime details and hashes.
+
+| Embedded target | Frozen-model check | Linked flash, text + data | Static SRAM, data + bss |
+|---|---|---:|---:|
+| Cortex-M4F, fpv4-sp-d16 | Cross-build and QEMU MPS2-AN386 functional pass | 140,180 B | 33,280 B |
+| Cortex-M7, fpv5-sp-d16 | Cross-build and QEMU MPS2-AN500 functional pass | 140,180 B | 33,280 B |
+| Cortex-M33, fpv5-sp-d16 | Cross-build only | 140,172 B | 33,280 B |
+
+These linked sizes include the eight-case golden test harness and newlib support.
+The linker enforces 256 KiB flash and 64 KiB SRAM and reserves at least 8 KiB
+beyond static state for test stack/semihosting heap. Static SRAM is not a measured
+stack high-water mark; production firmware needs its own complete memory budget.
+The M33 build assumes the optional FPU and a supported hard-float ABI.
+No physical Cortex-M timing, energy, DMA or interrupt behavior was measured.
+
+[CI run 34178151748](https://github.com/ryanharvey22/signal-processing-optimizations/actions/runs/34178151748)
+passed preparation, both native CPU jobs and the embedded job at commit
+`5b6e05aa4d150e5ed6c201d6b9c3ecd1699e88b9`. The preparation job also passed
+50 regression tests and nine compiled-C subtests. Architecture artifacts and
+their provenance are retained in [architecture_results](architecture_results/).
 
 Prior synthetic-fixture and model-parity checks establish implementation coverage,
 not physical target accuracy or latency. Native warm-cache microbenchmarks over a
 small golden set and full-holdout classification timings have different scopes;
 report them separately. QEMU execution cannot establish MCU cycles, energy or a
 matched-filter speedup. See the [native benchmark guide](../../docs/NATIVE_C_BENCHMARK.md).
+
+
+## Numerical replay and reproduction
+
+The original frozen labels, first-64 score blocks, latent codes, learned models,
+and test report are unchanged. Reordering one float32 auxiliary spectral baseline
+query creates a top-score tie: source row 37180 changes from class 3 to class 1.
+On Windows this auxiliary control therefore measures 60.28% native accuracy
+versus 60.30% in the frozen evaluation. Its exact-prediction flag is false.
+The selected autoencoder and both waveform matched filters retain strict exact
+prediction checks across all 5,000 rows.
+
+[auxiliary_replay.json](auxiliary_replay.json) and
+[auxiliary_replay.npz](auxiliary_replay.npz) are explicitly **post-freeze diagnostic
+supplements**. Their original-order replay reproduced every original auxiliary
+label before publication. Hashes bind the frozen spec, models and goldens;
+row IDs and class-column labels are checked. Every auxiliary score must agree
+with this full-score supplement within the pre-existing rtol=3e-4, atol=3e-5,
+including rows with unchanged predictions. Disagreements are separately listed
+with both margins and actual accuracy. The observed maximum score residual on
+the affected Windows baseline is 6.56e-7. Approximate auxiliary numerical agreement
+does not count as exact parity or accuracy-superiority evidence.
+
+Rebuild the published frozen inference bundle without training:
+
+```bash
+python -m pip install -r requirements-optimized.txt
+python scripts/fetch_radchar_tiny.py --output data/radchar/RadChar-Tiny.h5
+python scripts/optimized_filter.py rebuild --spec benchmarks/radchar --h5 data/radchar/RadChar-Tiny.h5 --out experiments/reproduced
+python scripts/optimized_filter.py native --experiment experiments/reproduced --output experiments/reproduced/native.json --repeats 100
+python scripts/export_embedded.py --model experiments/reproduced/latent.npz --output build/reproduced/ogae_model.h --golden-output build/reproduced/ogae_golden.h --golden-iq experiments/reproduced/queries.npz --cases 8
+```
+
+The upstream RadChar frame is 512 samples at 3.2 MHz, or 160 us. The measured
+Windows C time is longer than that interval. Full-rate continuous acquisition
+with this model is not demonstrated on this host or any physical MCU.
+Scheduling, DMA, interrupts, receiver preprocessing, cold flash/cache effects and
+application buffers are outside these inference timings.

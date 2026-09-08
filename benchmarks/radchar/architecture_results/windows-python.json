@@ -1,0 +1,913 @@
+{
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "processor": "AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD",
+    "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+    "numpy": "2.5.2",
+    "threadpools": [
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "filepath": "C:\\Users\\dalto\\source\\repos\\signal-processing-optimizations\\.venv\\Lib\\site-packages\\numpy.libs\\libscipy_openblas64_-327b2e0bcffce2882e0dc04cdeb4eaa6.dll",
+        "version": "0.3.34.0.0",
+        "threading_layer": "pthreads",
+        "architecture": "Haswell"
+      }
+    ],
+    "numpy_runtime": "[{'numpy_version': '2.5.2',\n  'python': '3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]',\n  'uname': uname_result(system='Windows', node='Fern', release='11', version='10.0.26200', machine='AMD64')},\n {'simd_extensions': {'baseline': ['X86_V2'],\n                      'found': ['X86_V3'],\n                      'not_found': []}},\n {'ignore_floating_point_errors_in_matmul': False},\n {'architecture': 'Haswell',\n  'filepath': 'C:\\\\Users\\\\dalto\\\\source\\\\repos\\\\signal-processing-optimizations\\\\.venv\\\\Lib\\\\site-packages\\\\numpy.libs\\\\libscipy_openblas64_-327b2e0bcffce2882e0dc04cdeb4eaa6.dll',\n  'internal_api': 'openblas',\n  'num_threads': 1,\n  'prefix': 'libscipy_openblas',\n  'threading_layer': 'pthreads',\n  'user_api': 'blas',\n  'version': '0.3.34.0.0'}]\n",
+    "pid": 40492
+  },
+  "bundle_sha256": "a0ddb10271c0fbf5872dd6fa029135970b1a5f0ccc5e52e0e6e27ddb28ac078b",
+  "queries_sha256": "20eeef8b1ebb97ab63d0aaf7f7db6dacef8c3989a29e01324e3c1e9d968a6685",
+  "results": {
+    "encoder_candidate_0": {
+      "accuracy": 0.7412,
+      "frozen_accuracy": 0.7412,
+      "storage_bytes": 29544,
+      "operations": {
+        "fft_real_ops_estimate": 23040,
+        "frontend_add_multiply_ops": 2175,
+        "frontend_divisions": 128,
+        "frontend_log1p": 128,
+        "input_finiteness_checks": 1024,
+        "real_flops_estimate": 39854,
+        "special_function_evaluations": 129,
+        "encoder_macs": 6912,
+        "matching_macs": 320,
+        "affine_and_matching_real_ops": 14464,
+        "relu_comparisons": 48,
+        "latent_norm_add_multiply_ops": 31,
+        "latent_norm_sqrt": 1,
+        "latent_norm_divisions": 16,
+        "class_max_comparisons": 15,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 1.3113021850585938e-06,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 84.8,
+          "batch1_p95_us": 110.98499999999999,
+          "batch_frames_per_second": 97709.92366412214
+        },
+        {
+          "batch1_p50_us": 84.0,
+          "batch1_p95_us": 104.71499999999996,
+          "batch_frames_per_second": 83808.02723760884
+        },
+        {
+          "batch1_p50_us": 84.35,
+          "batch1_p95_us": 104.955,
+          "batch_frames_per_second": 93240.09324009324
+        }
+      ],
+      "batch1_p50_us": 84.35,
+      "batch1_p95_us": 104.955,
+      "batch_frames_per_second": 93240.09324009324,
+      "batch_size": 128
+    },
+    "linear": {
+      "accuracy": 0.6976,
+      "frozen_accuracy": 0.6976,
+      "storage_bytes": 2620,
+      "operations": {
+        "fft_real_ops_estimate": 23040,
+        "frontend_add_multiply_ops": 2175,
+        "frontend_divisions": 128,
+        "frontend_log1p": 128,
+        "input_finiteness_checks": 1024,
+        "encoder_macs": 640,
+        "affine_real_ops": 1280,
+        "class_argmax_comparisons": 4,
+        "relu_comparisons": 0,
+        "real_flops_estimate": 26623,
+        "special_function_evaluations": 128
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 0.0,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 43.2,
+          "batch1_p95_us": 94.69999999999999,
+          "batch_frames_per_second": 106555.67117585847
+        },
+        {
+          "batch1_p50_us": 40.9,
+          "batch1_p95_us": 64.11499999999998,
+          "batch_frames_per_second": 93851.96319243319
+        },
+        {
+          "batch1_p50_us": 42.2,
+          "batch1_p95_us": 97.85499999999999,
+          "batch_frames_per_second": 97512.66521921306
+        }
+      ],
+      "batch1_p50_us": 42.2,
+      "batch1_p95_us": 94.69999999999999,
+      "batch_frames_per_second": 97512.66521921306,
+      "batch_size": 128
+    },
+    "classifier": {
+      "accuracy": 0.7412,
+      "frozen_accuracy": 0.7412,
+      "storage_bytes": 25788,
+      "operations": {
+        "fft_real_ops_estimate": 23040,
+        "frontend_add_multiply_ops": 2175,
+        "frontend_divisions": 128,
+        "frontend_log1p": 128,
+        "input_finiteness_checks": 1024,
+        "encoder_macs": 6384,
+        "affine_real_ops": 12768,
+        "class_argmax_comparisons": 4,
+        "relu_comparisons": 48,
+        "real_flops_estimate": 38111,
+        "special_function_evaluations": 128
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 1.52587890625e-05,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 47.8,
+          "batch1_p95_us": 87.25999999999999,
+          "batch_frames_per_second": 78580.63723985512
+        },
+        {
+          "batch1_p50_us": 47.4,
+          "batch1_p95_us": 94.345,
+          "batch_frames_per_second": 103778.1741527485
+        },
+        {
+          "batch1_p50_us": 47.150000000000006,
+          "batch1_p95_us": 71.47,
+          "batch_frames_per_second": 97349.50754838955
+        }
+      ],
+      "batch1_p50_us": 47.4,
+      "batch1_p95_us": 87.25999999999999,
+      "batch_frames_per_second": 97349.50754838955,
+      "batch_size": 128
+    },
+    "mf_aligned": {
+      "accuracy": 0.7542,
+      "frozen_accuracy": 0.7542,
+      "storage_bytes": 42024960,
+      "operations": {
+        "real_flops_estimate": 20976640,
+        "fft_flops_estimate": 0,
+        "comparisons": 5124,
+        "special_function_evaluations": 0,
+        "convention": "multiply and add each 1 FLOP; complex dot 8N-2; complex FFT estimated 5Nlog2N; magnitude squared 3"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": false,
+      "full_score_max_absolute_residual": null,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 7570.65,
+          "batch1_p95_us": 9421.75,
+          "batch_frames_per_second": 664.9393827232644
+        },
+        {
+          "batch1_p50_us": 7247.549999999999,
+          "batch1_p95_us": 8364.6,
+          "batch_frames_per_second": 716.3393937698061
+        },
+        {
+          "batch1_p50_us": 7641.3,
+          "batch1_p95_us": 9559.415,
+          "batch_frames_per_second": 680.910824620246
+        }
+      ],
+      "batch1_p50_us": 7570.65,
+      "batch1_p95_us": 9421.75,
+      "batch_frames_per_second": 680.910824620246,
+      "batch_size": 128
+    },
+    "mf_fft": {
+      "accuracy": 0.848,
+      "frozen_accuracy": 0.848,
+      "storage_bytes": 62996480,
+      "operations": {
+        "real_flops_estimate": 141580800,
+        "fft_flops_estimate": 117987840,
+        "comparisons": 2621444,
+        "special_function_evaluations": 0,
+        "convention": "multiply and add each 1 FLOP; complex dot 8N-2; complex FFT estimated 5Nlog2N; magnitude squared 3"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": false,
+      "full_score_max_absolute_residual": null,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 27427.199999999997,
+          "batch1_p95_us": 32653.91,
+          "batch_frames_per_second": 41.91607413001797
+        },
+        {
+          "batch1_p50_us": 27905.65,
+          "batch1_p95_us": 32799.89,
+          "batch_frames_per_second": 56.36319686680511
+        },
+        {
+          "batch1_p50_us": 28544.9,
+          "batch1_p95_us": 35135.55,
+          "batch_frames_per_second": 59.46860112450943
+        }
+      ],
+      "batch1_p50_us": 27905.65,
+      "batch1_p95_us": 32799.89,
+      "batch_frames_per_second": 56.36319686680511,
+      "batch_size": 128
+    },
+    "spectral": {
+      "accuracy": 0.6104,
+      "frozen_accuracy": 0.6104,
+      "storage_bytes": 11424,
+      "operations": {
+        "real_flops_estimate": 30826,
+        "fft_flops_estimate": 23040,
+        "comparisons": 24,
+        "special_function_evaluations": 129,
+        "convention": "multiply/add/divide each 1 FLOP; complex FFT estimated 5Nlog2N; log1p and sqrt counted separately"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 7.152557373046875e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 80.5,
+          "batch1_p95_us": 88.11,
+          "batch_frames_per_second": 91249.33166993406
+        },
+        {
+          "batch1_p50_us": 83.3,
+          "batch1_p95_us": 128.825,
+          "batch_frames_per_second": 102712.24522548547
+        },
+        {
+          "batch1_p50_us": 80.9,
+          "batch1_p95_us": 112.515,
+          "batch_frames_per_second": 83986.74584167187
+        }
+      ],
+      "batch1_p50_us": 80.9,
+      "batch1_p95_us": 112.515,
+      "batch_frames_per_second": 91249.33166993406,
+      "batch_size": 128
+    },
+    "pca": {
+      "accuracy": 0.6272,
+      "frozen_accuracy": 0.6272,
+      "storage_bytes": 10656,
+      "operations": {
+        "real_flops_estimate": 30218,
+        "fft_flops_estimate": 23040,
+        "comparisons": 24,
+        "special_function_evaluations": 129,
+        "convention": "multiply/add/divide each 1 FLOP; complex FFT estimated 5Nlog2N; log1p and sqrt counted separately"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 3.8743019104003906e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 82.95,
+          "batch1_p95_us": 89.74999999999999,
+          "batch_frames_per_second": 99017.56014543204
+        },
+        {
+          "batch1_p50_us": 85.3,
+          "batch1_p95_us": 136.795,
+          "batch_frames_per_second": 94051.94900620889
+        },
+        {
+          "batch1_p50_us": 84.0,
+          "batch1_p95_us": 144.96,
+          "batch_frames_per_second": 81742.12912701961
+        }
+      ],
+      "batch1_p50_us": 84.0,
+      "batch1_p95_us": 136.795,
+      "batch_frames_per_second": 94051.94900620889,
+      "batch_size": 128
+    },
+    "spectral_standardized": {
+      "accuracy": 0.6028,
+      "frozen_accuracy": 0.603,
+      "storage_bytes": 11424,
+      "operations": {
+        "real_flops_estimate": 31082,
+        "fft_flops_estimate": 23040,
+        "comparisons": 24,
+        "special_function_evaluations": 129,
+        "convention": "multiply/add/divide each 1 FLOP; complex FFT estimated 5Nlog2N; log1p and sqrt counted separately"
+      },
+      "golden_predictions_equal": false,
+      "parity_status": "auxiliary_near_tie_disagreement",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 6.556510925292969e-07,
+      "disagreements": [
+        {
+          "query_index": 2081,
+          "source_row_id": 37180,
+          "frozen_label": 3,
+          "native_label": 1,
+          "reference_margin": 1.1920928955078125e-07,
+          "native_margin": 0.0,
+          "allowed_two_score_perturbation": 0.0004567289328575134
+        }
+      ],
+      "trials": [
+        {
+          "batch1_p50_us": 83.85,
+          "batch1_p95_us": 219.50499999999997,
+          "batch_frames_per_second": 87086.67845965437
+        },
+        {
+          "batch1_p50_us": 84.7,
+          "batch1_p95_us": 108.01999999999998,
+          "batch_frames_per_second": 88367.2764929237
+        },
+        {
+          "batch1_p50_us": 82.7,
+          "batch1_p95_us": 137.27999999999997,
+          "batch_frames_per_second": 98035.46126450427
+        }
+      ],
+      "batch1_p50_us": 83.85,
+      "batch1_p95_us": 137.27999999999997,
+      "batch_frames_per_second": 88367.2764929237,
+      "batch_size": 128
+    },
+    "pca_standardized": {
+      "accuracy": 0.5734,
+      "frozen_accuracy": 0.5734,
+      "storage_bytes": 10656,
+      "operations": {
+        "real_flops_estimate": 30346,
+        "fft_flops_estimate": 23040,
+        "comparisons": 24,
+        "special_function_evaluations": 129,
+        "convention": "multiply/add/divide each 1 FLOP; complex FFT estimated 5Nlog2N; log1p and sqrt counted separately"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 4.172325134277344e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 82.95,
+          "batch1_p95_us": 93.68999999999998,
+          "batch_frames_per_second": 100376.41154328732
+        },
+        {
+          "batch1_p50_us": 88.69999999999999,
+          "batch1_p95_us": 162.795,
+          "batch_frames_per_second": 90818.7881367958
+        },
+        {
+          "batch1_p50_us": 82.8,
+          "batch1_p95_us": 114.47,
+          "batch_frames_per_second": 76372.31503579952
+        }
+      ],
+      "batch1_p50_us": 82.95,
+      "batch1_p95_us": 114.47,
+      "batch_frames_per_second": 90818.7881367958,
+      "batch_size": 128
+    },
+    "encoder_candidate_1": {
+      "accuracy": 0.713,
+      "frozen_accuracy": 0.713,
+      "storage_bytes": 137128,
+      "operations": {
+        "fft_real_ops_estimate": 23040,
+        "frontend_add_multiply_ops": 2559,
+        "frontend_divisions": 512,
+        "frontend_log1p": 512,
+        "input_finiteness_checks": 1024,
+        "real_flops_estimate": 94382,
+        "special_function_evaluations": 513,
+        "encoder_macs": 33792,
+        "matching_macs": 320,
+        "affine_and_matching_real_ops": 68224,
+        "relu_comparisons": 64,
+        "latent_norm_add_multiply_ops": 31,
+        "latent_norm_sqrt": 1,
+        "latent_norm_divisions": 16,
+        "class_max_comparisons": 15,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 1.3336539268493652e-06,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 86.5,
+          "batch1_p95_us": 124.83999999999996,
+          "batch_frames_per_second": 70916.09185850024
+        },
+        {
+          "batch1_p50_us": 90.3,
+          "batch1_p95_us": 152.84999999999997,
+          "batch_frames_per_second": 64030.41444686226
+        },
+        {
+          "batch1_p50_us": 88.15,
+          "batch1_p95_us": 133.265,
+          "batch_frames_per_second": 69741.46620535593
+        }
+      ],
+      "batch1_p50_us": 88.15,
+      "batch1_p95_us": 133.265,
+      "batch_frames_per_second": 69741.46620535593,
+      "batch_size": 128
+    },
+    "no_reconstruction_2": {
+      "accuracy": 0.7818,
+      "frozen_accuracy": 0.7818,
+      "storage_bytes": 17592,
+      "operations": {
+        "real_flops_estimate": 589519,
+        "special_function_evaluations": 2,
+        "frontend_real_ops": 4096,
+        "encoder_macs": 292352,
+        "matching_macs": 80,
+        "relu_comparisons": 6656,
+        "pool_max_comparisons": 496,
+        "class_max_comparisons": 0,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0,
+        "fft_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "largest_numpy_patch_payload_bytes": 983040,
+        "direct_c_activation_payload_bytes_estimate": 20480,
+        "scratch_note": "NumPy also allocates padding, outputs and BLAS workspace; C estimate excludes input/output and stack"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 6.109476089477539e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 380.6,
+          "batch1_p95_us": 568.4350000000001,
+          "batch_frames_per_second": 12397.57472444453
+        },
+        {
+          "batch1_p50_us": 446.3,
+          "batch1_p95_us": 745.0899999999999,
+          "batch_frames_per_second": 15968.163474073564
+        },
+        {
+          "batch1_p50_us": 371.75,
+          "batch1_p95_us": 514.625,
+          "batch_frames_per_second": 15530.116900528386
+        }
+      ],
+      "batch1_p50_us": 380.6,
+      "batch1_p95_us": 568.4350000000001,
+      "batch_frames_per_second": 15530.116900528386,
+      "batch_size": 128
+    },
+    "encoder_candidate_2": {
+      "accuracy": 0.7938,
+      "frozen_accuracy": 0.7938,
+      "storage_bytes": 17592,
+      "operations": {
+        "real_flops_estimate": 589519,
+        "special_function_evaluations": 2,
+        "frontend_real_ops": 4096,
+        "encoder_macs": 292352,
+        "matching_macs": 80,
+        "relu_comparisons": 6656,
+        "pool_max_comparisons": 496,
+        "class_max_comparisons": 0,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0,
+        "fft_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "largest_numpy_patch_payload_bytes": 983040,
+        "direct_c_activation_payload_bytes_estimate": 20480,
+        "scratch_note": "NumPy also allocates padding, outputs and BLAS workspace; C estimate excludes input/output and stack"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 6.258487701416016e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 372.20000000000005,
+          "batch1_p95_us": 408.49,
+          "batch_frames_per_second": 11545.313098969491
+        },
+        {
+          "batch1_p50_us": 387.4,
+          "batch1_p95_us": 559.13,
+          "batch_frames_per_second": 10132.79502859744
+        },
+        {
+          "batch1_p50_us": 375.2,
+          "batch1_p95_us": 522.4599999999998,
+          "batch_frames_per_second": 15660.078422736475
+        }
+      ],
+      "batch1_p50_us": 375.2,
+      "batch1_p95_us": 522.4599999999998,
+      "batch_frames_per_second": 11545.313098969491,
+      "batch_size": 128
+    },
+    "no_reconstruction_3": {
+      "accuracy": 0.817,
+      "frozen_accuracy": 0.817,
+      "storage_bytes": 27960,
+      "operations": {
+        "real_flops_estimate": 650575,
+        "special_function_evaluations": 2,
+        "frontend_real_ops": 4096,
+        "encoder_macs": 323072,
+        "matching_macs": 80,
+        "relu_comparisons": 7040,
+        "pool_max_comparisons": 112,
+        "class_max_comparisons": 0,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0,
+        "fft_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "largest_numpy_patch_payload_bytes": 983040,
+        "direct_c_activation_payload_bytes_estimate": 20480,
+        "scratch_note": "NumPy also allocates padding, outputs and BLAS workspace; C estimate excludes input/output and stack"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 5.066394805908203e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 498.70000000000005,
+          "batch1_p95_us": 686.55,
+          "batch_frames_per_second": 11676.22201241511
+        },
+        {
+          "batch1_p50_us": 489.8,
+          "batch1_p95_us": 590.665,
+          "batch_frames_per_second": 12041.732127905774
+        },
+        {
+          "batch1_p50_us": 474.35,
+          "batch1_p95_us": 531.395,
+          "batch_frames_per_second": 14390.268580872184
+        }
+      ],
+      "batch1_p50_us": 489.8,
+      "batch1_p95_us": 590.665,
+      "batch_frames_per_second": 12041.732127905774,
+      "batch_size": 128
+    },
+    "encoder_candidate_3": {
+      "accuracy": 0.8066,
+      "frozen_accuracy": 0.8066,
+      "storage_bytes": 27960,
+      "operations": {
+        "real_flops_estimate": 650575,
+        "special_function_evaluations": 2,
+        "frontend_real_ops": 4096,
+        "encoder_macs": 323072,
+        "matching_macs": 80,
+        "relu_comparisons": 7040,
+        "pool_max_comparisons": 112,
+        "class_max_comparisons": 0,
+        "class_argmax_comparisons": 4,
+        "decoder_runtime_ops": 0,
+        "fft_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "largest_numpy_patch_payload_bytes": 983040,
+        "direct_c_activation_payload_bytes_estimate": 20480,
+        "scratch_note": "NumPy also allocates padding, outputs and BLAS workspace; C estimate excludes input/output and stack"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 4.3213367462158203e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 495.9,
+          "batch1_p95_us": 667.7800000000001,
+          "batch_frames_per_second": 11517.575550346652
+        },
+        {
+          "batch1_p50_us": 486.2,
+          "batch1_p95_us": 603.41,
+          "batch_frames_per_second": 12408.391174531778
+        },
+        {
+          "batch1_p50_us": 514.4000000000001,
+          "batch1_p95_us": 785.145,
+          "batch_frames_per_second": 11624.052707813995
+        }
+      ],
+      "batch1_p50_us": 495.9,
+      "batch1_p95_us": 667.7800000000001,
+      "batch_frames_per_second": 11624.052707813995,
+      "batch_size": 128
+    },
+    "no_reconstruction_4": {
+      "accuracy": 0.8012,
+      "frozen_accuracy": 0.8012,
+      "storage_bytes": 30376,
+      "operations": {
+        "real_flops_estimate": 944464,
+        "special_function_evaluations": 2,
+        "coherent_complex_macs": 67584,
+        "tail_projection_real_macs": 195072,
+        "matching_macs": 80,
+        "first_kernel_samples": 33,
+        "receptive_field_samples": 281,
+        "fft_runtime_ops": 0,
+        "decoder_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "direct_c_activation_payload_bytes_estimate": 14336,
+        "scratch_note": "direct activation estimate excludes retained IQ features, pooling, latent, input/output and stack; NumPy GEMM allocates patches"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 8.791685104370117e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 506.6,
+          "batch1_p95_us": 740.2799999999999,
+          "batch_frames_per_second": 11162.320192898846
+        },
+        {
+          "batch1_p50_us": 491.95000000000005,
+          "batch1_p95_us": 545.0649999999999,
+          "batch_frames_per_second": 11556.362093326652
+        },
+        {
+          "batch1_p50_us": 607.45,
+          "batch1_p95_us": 924.0849999999999,
+          "batch_frames_per_second": 10809.76087626624
+        }
+      ],
+      "batch1_p50_us": 506.6,
+      "batch1_p95_us": 740.2799999999999,
+      "batch_frames_per_second": 11162.320192898846,
+      "batch_size": 128
+    },
+    "encoder_candidate_4": {
+      "accuracy": 0.8212,
+      "frozen_accuracy": 0.8212,
+      "storage_bytes": 30376,
+      "operations": {
+        "real_flops_estimate": 944464,
+        "special_function_evaluations": 2,
+        "coherent_complex_macs": 67584,
+        "tail_projection_real_macs": 195072,
+        "matching_macs": 80,
+        "first_kernel_samples": 33,
+        "receptive_field_samples": 281,
+        "fft_runtime_ops": 0,
+        "decoder_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "direct_c_activation_payload_bytes_estimate": 14336,
+        "scratch_note": "direct activation estimate excludes retained IQ features, pooling, latent, input/output and stack; NumPy GEMM allocates patches"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 4.917383193969727e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 501.04999999999995,
+          "batch1_p95_us": 678.325,
+          "batch_frames_per_second": 10388.809304477332
+        },
+        {
+          "batch1_p50_us": 501.25,
+          "batch1_p95_us": 618.3949999999999,
+          "batch_frames_per_second": 11160.422352233392
+        },
+        {
+          "batch1_p50_us": 497.9,
+          "batch1_p95_us": 600.0849999999998,
+          "batch_frames_per_second": 11403.422808627402
+        }
+      ],
+      "batch1_p50_us": 501.04999999999995,
+      "batch1_p95_us": 618.3949999999999,
+      "batch_frames_per_second": 11160.422352233392,
+      "batch_size": 128
+    },
+    "encoder_no_reconstruction": {
+      "accuracy": 0.823,
+      "frozen_accuracy": 0.823,
+      "storage_bytes": 50984,
+      "operations": {
+        "real_flops_estimate": 2666832,
+        "special_function_evaluations": 2,
+        "coherent_complex_macs": 266240,
+        "tail_projection_real_macs": 256512,
+        "matching_macs": 80,
+        "first_kernel_samples": 65,
+        "receptive_field_samples": 313,
+        "fft_runtime_ops": 0,
+        "decoder_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "direct_c_activation_payload_bytes_estimate": 22528,
+        "scratch_note": "direct activation estimate excludes retained IQ features, pooling, latent, input/output and stack; NumPy GEMM allocates patches"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": true,
+      "full_score_max_absolute_residual": 7.506459951400757e-07,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 541.6500000000001,
+          "batch1_p95_us": 642.8499999999999,
+          "batch_frames_per_second": 6158.746502625887
+        },
+        {
+          "batch1_p50_us": 527.55,
+          "batch1_p95_us": 711.505,
+          "batch_frames_per_second": 5938.366253378026
+        },
+        {
+          "batch1_p50_us": 520.4,
+          "batch1_p95_us": 680.7700000000001,
+          "batch_frames_per_second": 6003.850907496137
+        }
+      ],
+      "batch1_p50_us": 527.55,
+      "batch1_p95_us": 680.7700000000001,
+      "batch_frames_per_second": 6003.850907496137,
+      "batch_size": 128
+    },
+    "latent": {
+      "accuracy": 0.8266,
+      "frozen_accuracy": 0.8266,
+      "storage_bytes": 50984,
+      "operations": {
+        "real_flops_estimate": 2666832,
+        "special_function_evaluations": 2,
+        "coherent_complex_macs": 266240,
+        "tail_projection_real_macs": 256512,
+        "matching_macs": 80,
+        "first_kernel_samples": 65,
+        "receptive_field_samples": 313,
+        "fft_runtime_ops": 0,
+        "decoder_runtime_ops": 0,
+        "numpy_chunk_frames": 32,
+        "direct_c_activation_payload_bytes_estimate": 22528,
+        "scratch_note": "direct activation estimate excludes retained IQ features, pooling, latent, input/output and stack; NumPy GEMM allocates patches"
+      },
+      "golden_predictions_equal": true,
+      "parity_status": "exact_predictions",
+      "post_freeze_full_score_replay_checked": false,
+      "full_score_max_absolute_residual": null,
+      "disagreements": [],
+      "trials": [
+        {
+          "batch1_p50_us": 528.45,
+          "batch1_p95_us": 703.9399999999999,
+          "batch_frames_per_second": 5932.916329656934
+        },
+        {
+          "batch1_p50_us": 530.45,
+          "batch1_p95_us": 740.6199999999999,
+          "batch_frames_per_second": 6057.47980445698
+        },
+        {
+          "batch1_p50_us": 532.75,
+          "batch1_p95_us": 751.81,
+          "batch_frames_per_second": 5862.7117790124075
+        }
+      ],
+      "batch1_p50_us": 530.45,
+      "batch1_p95_us": 740.6199999999999,
+      "batch_frames_per_second": 5932.916329656934,
+      "batch_size": 128
+    }
+  },
+  "trial_orders": [
+    [
+      "encoder_candidate_0",
+      "linear",
+      "classifier",
+      "mf_aligned",
+      "mf_fft",
+      "spectral",
+      "pca",
+      "spectral_standardized",
+      "pca_standardized",
+      "encoder_candidate_1",
+      "no_reconstruction_2",
+      "encoder_candidate_2",
+      "no_reconstruction_3",
+      "encoder_candidate_3",
+      "no_reconstruction_4",
+      "encoder_candidate_4",
+      "encoder_no_reconstruction",
+      "latent"
+    ],
+    [
+      "latent",
+      "encoder_no_reconstruction",
+      "encoder_candidate_4",
+      "no_reconstruction_4",
+      "encoder_candidate_3",
+      "no_reconstruction_3",
+      "encoder_candidate_2",
+      "no_reconstruction_2",
+      "encoder_candidate_1",
+      "pca_standardized",
+      "spectral_standardized",
+      "pca",
+      "spectral",
+      "mf_fft",
+      "mf_aligned",
+      "classifier",
+      "linear",
+      "encoder_candidate_0"
+    ],
+    [
+      "encoder_candidate_0",
+      "linear",
+      "classifier",
+      "mf_aligned",
+      "mf_fft",
+      "spectral",
+      "pca",
+      "spectral_standardized",
+      "pca_standardized",
+      "encoder_candidate_1",
+      "no_reconstruction_2",
+      "encoder_candidate_2",
+      "no_reconstruction_3",
+      "encoder_candidate_3",
+      "no_reconstruction_4",
+      "encoder_candidate_4",
+      "encoder_no_reconstruction",
+      "latent"
+    ]
+  ],
+  "exact_primary_parity": true,
+  "all_predictions_exact": false,
+  "auxiliary_approximate_numeric_agreement": true,
+  "post_freeze_replay_metadata_sha256": "c499a35775cab038ec7072a613694623651a3ab41c58883cdc7780569c3a6317",
+  "benchmark_code_snapshot": {
+    "files": {
+      "gcfcr\\optimized\\__init__.py": "b970f1478745fd05a1d12c07a352cce636d0220c8e69265c4382488554cab47e",
+      "gcfcr\\optimized\\api.py": "152236e1e17b466e21fe1cd80b647a149c73df12abac989bd38925896e0581af",
+      "gcfcr\\optimized\\autoencoder.py": "989a068377c5a3ab6ac3ce3b8b06fcbf22768b6eeca5c455b5deb1879d5ba5c9",
+      "gcfcr\\optimized\\baselines.py": "712334d22675b7ce5fb86e1a03d258fedae79e138fc85946ba84bcd0376a073c",
+      "gcfcr\\optimized\\classifier.py": "78cb5f8f8ca29f7cee1c37eafa9fb8266e051e3b3167034b42bb27fa25ed6b2d",
+      "gcfcr\\optimized\\coherent_autoencoder.py": "d17b329c1328ce0fa98bb894666bef594be6fee6f14dd3ae576be88805e6938f",
+      "gcfcr\\optimized\\conv_autoencoder.py": "4408b7c4c90d08433e95b5418ad6064e2aacd876f0d69b849a2ea1b70ddc7c8b",
+      "gcfcr\\optimized\\data.py": "19a8bf6f2217c3c089340837733827fdc6774956780c585a791b53727a8146ed",
+      "gcfcr\\optimized\\features.py": "6d5376cfd87b4dfd70af414043152ba842b18d9f693f1eea72576251497d4d5f",
+      "gcfcr\\optimized\\metrics.py": "bf4b6357e75e1e9d3b0d7f7a3239974ea6d43c05e5bf85c77681318b77b8d95e",
+      "scripts\\optimized_filter.py": "b4f59c2cbde9b5dd97be4bdea48624a979b7ac7c8486ffc780a87c28ad5b0cbe"
+    },
+    "git_revision": "da761e26f63951150ffe9c4a91e9e03ef536f1ed",
+    "working_tree_dirty": true
+  },
+  "primary_comparator": "mf_fft",
+  "matched_filter_latency_gate": true,
+  "measurement": "wall-clock input-IQ through prediction; warm caches; alternating 3 trials; includes Python/FFT/BLAS",
+  "hardware_microcontroller_measurement": false,
+  "benchmark_code_snapshot_scope": "Snapshot captured after measurement; verification/schema and snapshot-bookkeeping sources changed during this local run. Inference model code and frozen parameters were unchanged. Use the clean-commit CI runs for exact verification-source attribution."
+}

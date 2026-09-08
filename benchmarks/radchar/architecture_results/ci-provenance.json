@@ -1,0 +1,487 @@
+{
+  "schema_version": 1,
+  "repository": "ryanharvey22/signal-processing-optimizations",
+  "run_id": 34178151748,
+  "run_url": "https://github.com/ryanharvey22/signal-processing-optimizations/actions/runs/34178151748",
+  "head_sha": "5b6e05aa4d150e5ed6c201d6b9c3ecd1699e88b9",
+  "branch": "codex/latent-autoencoder-matched-filter",
+  "status": "completed",
+  "conclusion": "success",
+  "retrieved_at_utc": "2026-09-08T02:03:38.548164+00:00",
+  "download_root": "experiments/ci-34178151748",
+  "jobs": [
+    {
+      "name": "prepare",
+      "job_id": 101911569939,
+      "conclusion": "success",
+      "url": "https://github.com/ryanharvey22/signal-processing-optimizations/actions/runs/34178151748/job/101911569939"
+    },
+    {
+      "name": "embedded",
+      "job_id": 101912046025,
+      "conclusion": "success",
+      "url": "https://github.com/ryanharvey22/signal-processing-optimizations/actions/runs/34178151748/job/101912046025"
+    },
+    {
+      "name": "native (ubuntu-24.04)",
+      "job_id": 101912046043,
+      "conclusion": "success",
+      "url": "https://github.com/ryanharvey22/signal-processing-optimizations/actions/runs/34178151748/job/101912046043"
+    },
+    {
+      "name": "native (ubuntu-24.04-arm)",
+      "job_id": 101912046142,
+      "conclusion": "success",
+      "url": "https://github.com/ryanharvey22/signal-processing-optimizations/actions/runs/34178151748/job/101912046142"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 10038001924,
+      "name": "shared-frozen-fixture",
+      "archive_sha256": "9d636315c9c86986df705d5438ba8ed850716e607cc45f289710411228dff0a6",
+      "expires_at": "2026-09-15T01:56:10Z"
+    },
+    {
+      "id": 10038020906,
+      "name": "microcontroller-validation",
+      "archive_sha256": "5d4db4541a12cf8ed63fda4b5a0c38d9f097db49838b4559943f230569fe601b",
+      "expires_at": "2026-09-15T01:57:15Z"
+    },
+    {
+      "id": 10038047008,
+      "name": "native-ubuntu-24.04",
+      "archive_sha256": "bfb941c721314a1c31b438f525ca121fc9d4a618f62f4773a52cba7cea0029e9",
+      "expires_at": "2026-09-15T01:58:43Z"
+    },
+    {
+      "id": 10038052196,
+      "name": "native-ubuntu-24.04-arm",
+      "archive_sha256": "09a1d877aeca3d054da75dfe45a7fd19d0fa34eb18aef53703b09bbc31260ab8",
+      "expires_at": "2026-09-15T01:59:00Z"
+    }
+  ],
+  "archive_digest_scope": "SHA-256 digests reported by GitHub artifact API; file hashes below computed locally after gh run download. Archives themselves were not retained.",
+  "measured_reports": [
+    {
+      "source_path": "experiments/ci-34178151748/native-ubuntu-24.04/native-results.json",
+      "size_bytes": 32267,
+      "sha256": "b0a6f092c4558efc30b3f7b32e1b131823dd764e6c0d93281fa8210e50aba901",
+      "artifact_name": "native-ubuntu-24.04",
+      "artifact_relative_path": "native-results.json",
+      "destination_path": "benchmarks/radchar/architecture_results/linux-x86_64-python.json",
+      "copied_byte_for_byte": true
+    },
+    {
+      "source_path": "experiments/ci-34178151748/native-ubuntu-24.04/native-c-results.json",
+      "size_bytes": 1679,
+      "sha256": "850ee7f86b5f4e48fb73daaa0819a1dc1357880f102dae6a91ba0e8c53f7e1f9",
+      "artifact_name": "native-ubuntu-24.04",
+      "artifact_relative_path": "native-c-results.json",
+      "destination_path": "benchmarks/radchar/architecture_results/linux-x86_64-c.json",
+      "copied_byte_for_byte": true
+    },
+    {
+      "source_path": "experiments/ci-34178151748/native-ubuntu-24.04-arm/native-results.json",
+      "size_bytes": 32416,
+      "sha256": "2a0f5befa557e45abb739bca3be42ebe094ca391483c35c0711f8d2409710dfa",
+      "artifact_name": "native-ubuntu-24.04-arm",
+      "artifact_relative_path": "native-results.json",
+      "destination_path": "benchmarks/radchar/architecture_results/linux-aarch64-python.json",
+      "copied_byte_for_byte": true
+    },
+    {
+      "source_path": "experiments/ci-34178151748/native-ubuntu-24.04-arm/native-c-results.json",
+      "size_bytes": 1680,
+      "sha256": "2d7ff825293f568e6e66e9d4cc666e4f8d7e2bc1ab81dee6a10294c7dcc9527e",
+      "artifact_name": "native-ubuntu-24.04-arm",
+      "artifact_relative_path": "native-c-results.json",
+      "destination_path": "benchmarks/radchar/architecture_results/linux-aarch64-c.json",
+      "copied_byte_for_byte": true
+    },
+    {
+      "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/microcontrollers.json",
+      "size_bytes": 3778,
+      "sha256": "9a3b68b4b9c76092889ef858af1ff6d2b1fd07f222148f6ec1d657f71b0635d0",
+      "artifact_name": "microcontroller-validation",
+      "artifact_relative_path": "artifacts/microcontrollers/microcontrollers.json",
+      "destination_path": "benchmarks/radchar/architecture_results/cortex-m.json",
+      "copied_byte_for_byte": true
+    }
+  ],
+  "shared_frozen_artifacts": [
+    {
+      "source_path": "experiments/ci-34178151748/shared-frozen-fixture/radchar/latent.npz",
+      "size_bytes": 36164,
+      "sha256": "c537271eef16204882bd9c48b76baadc07bea5411c4a3a4969bb10a8a6630058"
+    },
+    {
+      "source_path": "experiments/ci-34178151748/shared-frozen-fixture/radchar/bundle.json",
+      "size_bytes": 193552,
+      "sha256": "603ff7f1eb87e83773b1d890bf65965733968077ca0126a50379a2c6e12cd5f0"
+    },
+    {
+      "source_path": "experiments/ci-34178151748/shared-frozen-fixture/radchar/queries.npz",
+      "size_bytes": 19394227,
+      "sha256": "ad2d91526136ca8587e19894a041fe0e427a1cbf97051503e15fb636232a1597"
+    },
+    {
+      "source_path": "experiments/ci-34178151748/shared-frozen-fixture/radchar/spec.json",
+      "size_bytes": 217023,
+      "sha256": "e4f0e0ec8907d8ba0b0751738b341d044c14cb258da0e2c49a47aaa96a1c5b4d"
+    },
+    {
+      "source_path": "experiments/ci-34178151748/shared-frozen-fixture/radchar/rebuild_verification.json",
+      "size_bytes": 7612,
+      "sha256": "80241fd5ea85312d60e9c2a8db33d1c78ee0de5c88f0cc8defd6b834e70cf8b7"
+    },
+    {
+      "source_path": "experiments/ci-34178151748/shared-frozen-fixture/radchar/auxiliary_replay.json",
+      "size_bytes": 5389,
+      "sha256": "c499a35775cab038ec7072a613694623651a3ab41c58883cdc7780569c3a6317"
+    },
+    {
+      "source_path": "experiments/ci-34178151748/shared-frozen-fixture/generated/ogae_model.h",
+      "size_bytes": 135389,
+      "sha256": "facf0e1d7540130ad5529929a22cbd7972ed7558bf6b4ce61964146a74b34ed0"
+    },
+    {
+      "source_path": "experiments/ci-34178151748/shared-frozen-fixture/generated/ogae_golden.h",
+      "size_bytes": 246770,
+      "sha256": "0f5a9903504c887cfb7a0ef279d98cb0da50f81a533951c0abea24a62c253312"
+    },
+    {
+      "source_path": "experiments/ci-34178151748/shared-frozen-fixture/generated/ogae_model.h.json",
+      "size_bytes": 1042,
+      "sha256": "ef68a0e226930ef6375745683e88cbe827f60c7a81fa66fea5fab6f62c7f03df"
+    }
+  ],
+  "c_build_options": [
+    "-std=c99",
+    "-O3",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pedantic",
+    "-Iembedded",
+    "-Iartifacts/generated",
+    "-lm"
+  ],
+  "c_build_sources": [
+    "embedded/ogae.c",
+    "embedded/benchmark_native.c"
+  ],
+  "c_full_iq_parity": {
+    "golden_cases": 8,
+    "label_scores_features_and_latent_checked": true,
+    "test_inference_max_error_upper_bound": 1.193e-06,
+    "bound_source": "Completed native C parity logs, and Cortex-M4/M7 qemu_output in cortex-m.json"
+  },
+  "python_parity_scope": {
+    "query_count": 5000,
+    "primary_models": [
+      "latent",
+      "mf_fft",
+      "mf_aligned"
+    ],
+    "exact_primary_predictions_on_both_native_architectures": true,
+    "score_and_code_tolerance_cases": 64,
+    "scores_rtol": 0.0003,
+    "scores_atol": 3e-05,
+    "all_model_predictions_exact": false,
+    "auxiliary_disagreements_preserved_in_measured_reports": true
+  },
+  "native_timing_scope": "C median of three trial means, 1,000 calls/trial rotating eight golden cases. Python median across three warm-cache trials, 100 batch-one calls/trial and batch-128 throughput. Different runtime implementations; no physical MCU latency measured.",
+  "microcontroller_stack_evidence": {
+    "compiler_reports": [
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m33.elf-ogae.su",
+        "size_bytes": 441,
+        "sha256": "12c33679485ddec632620419fa062d9a08db04a0fe6da815ef07536b3d0c57be",
+        "entries": [
+          {
+            "location_and_function": "embedded/ogae.c:11:12:shape_valid",
+            "frame_bytes": 12,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:150:20:match_normalized",
+            "frame_bytes": 48,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:48:8:ogae_workspace_floats",
+            "frame_bytes": 32,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:64:13:ogae_validate_model",
+            "frame_bytes": 24,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:101:14:ogae_features",
+            "frame_bytes": 0,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:105:14:ogae_latent",
+            "frame_bytes": 40,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:168:13:ogae_match_codes",
+            "frame_bytes": 24,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:323:13:ogae_predict",
+            "frame_bytes": 168,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:361:13:ogae_aligned_predict",
+            "frame_bytes": 48,
+            "qualifier": "static"
+          }
+        ]
+      },
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m33.elf-startup.su",
+        "size_bytes": 97,
+        "sha256": "6ed913e764b7cf36167f504ffe139201af39a762bda39928e7147195fc13e37a",
+        "entries": [
+          {
+            "location_and_function": "embedded/qemu/startup.c:11:13:fault",
+            "frame_bytes": 0,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/qemu/startup.c:12:6:Reset_Handler",
+            "frame_bytes": 8,
+            "qualifier": "static"
+          }
+        ]
+      },
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m33.elf-test_inference.su",
+        "size_bytes": 47,
+        "sha256": "4db242900191b2ee53e8fc0aaf1b55856e54e9138182b6a3c65cd5a1e6b84a1d",
+        "entries": [
+          {
+            "location_and_function": "embedded/test_inference.c:58:5:main",
+            "frame_bytes": 232,
+            "qualifier": "static"
+          }
+        ]
+      },
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m4.elf-ogae.su",
+        "size_bytes": 441,
+        "sha256": "12c33679485ddec632620419fa062d9a08db04a0fe6da815ef07536b3d0c57be",
+        "entries": [
+          {
+            "location_and_function": "embedded/ogae.c:11:12:shape_valid",
+            "frame_bytes": 12,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:150:20:match_normalized",
+            "frame_bytes": 48,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:48:8:ogae_workspace_floats",
+            "frame_bytes": 32,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:64:13:ogae_validate_model",
+            "frame_bytes": 24,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:101:14:ogae_features",
+            "frame_bytes": 0,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:105:14:ogae_latent",
+            "frame_bytes": 40,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:168:13:ogae_match_codes",
+            "frame_bytes": 24,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:323:13:ogae_predict",
+            "frame_bytes": 168,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:361:13:ogae_aligned_predict",
+            "frame_bytes": 48,
+            "qualifier": "static"
+          }
+        ]
+      },
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m4.elf-startup.su",
+        "size_bytes": 97,
+        "sha256": "6ed913e764b7cf36167f504ffe139201af39a762bda39928e7147195fc13e37a",
+        "entries": [
+          {
+            "location_and_function": "embedded/qemu/startup.c:11:13:fault",
+            "frame_bytes": 0,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/qemu/startup.c:12:6:Reset_Handler",
+            "frame_bytes": 8,
+            "qualifier": "static"
+          }
+        ]
+      },
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m4.elf-test_inference.su",
+        "size_bytes": 47,
+        "sha256": "4db242900191b2ee53e8fc0aaf1b55856e54e9138182b6a3c65cd5a1e6b84a1d",
+        "entries": [
+          {
+            "location_and_function": "embedded/test_inference.c:58:5:main",
+            "frame_bytes": 232,
+            "qualifier": "static"
+          }
+        ]
+      },
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m7.elf-ogae.su",
+        "size_bytes": 441,
+        "sha256": "f6f19a9c183155f1981b0dbd294477c687eb7266a520e21f3c0f93f4e53222a5",
+        "entries": [
+          {
+            "location_and_function": "embedded/ogae.c:11:12:shape_valid",
+            "frame_bytes": 12,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:150:20:match_normalized",
+            "frame_bytes": 48,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:48:8:ogae_workspace_floats",
+            "frame_bytes": 40,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:64:13:ogae_validate_model",
+            "frame_bytes": 24,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:101:14:ogae_features",
+            "frame_bytes": 0,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:105:14:ogae_latent",
+            "frame_bytes": 40,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:168:13:ogae_match_codes",
+            "frame_bytes": 24,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:323:13:ogae_predict",
+            "frame_bytes": 168,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/ogae.c:361:13:ogae_aligned_predict",
+            "frame_bytes": 48,
+            "qualifier": "static"
+          }
+        ]
+      },
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m7.elf-startup.su",
+        "size_bytes": 97,
+        "sha256": "6ed913e764b7cf36167f504ffe139201af39a762bda39928e7147195fc13e37a",
+        "entries": [
+          {
+            "location_and_function": "embedded/qemu/startup.c:11:13:fault",
+            "frame_bytes": 0,
+            "qualifier": "static"
+          },
+          {
+            "location_and_function": "embedded/qemu/startup.c:12:6:Reset_Handler",
+            "frame_bytes": 8,
+            "qualifier": "static"
+          }
+        ]
+      },
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m7.elf-test_inference.su",
+        "size_bytes": 47,
+        "sha256": "4db242900191b2ee53e8fc0aaf1b55856e54e9138182b6a3c65cd5a1e6b84a1d",
+        "entries": [
+          {
+            "location_and_function": "embedded/test_inference.c:58:5:main",
+            "frame_bytes": 232,
+            "qualifier": "static"
+          }
+        ]
+      }
+    ],
+    "linker_maps": [
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m33.map",
+        "size_bytes": 156705,
+        "sha256": "c81a95273997f73275bb376cacefdf58e625b08f9be45ed17d9283da7097c0ca",
+        "linked_elf": {
+          "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m33.elf",
+          "size_bytes": 444044,
+          "sha256": "a82ef4b0c9e66507347ac8000750cd3149d1a609642a08d5524722eb6d161993"
+        },
+        "bss_end": "0x20008200",
+        "stack_top": "0x20010000",
+        "unallocated_ram_after_static_bytes": 32256,
+        "minimum_stack_semihosting_heap_reserve_assertion_bytes": 8192
+      },
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m4.map",
+        "size_bytes": 153171,
+        "sha256": "b61f999c29e92edae3974bce4d491e0189d6c03577f94806ee5b24afcb627de3",
+        "linked_elf": {
+          "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m4.elf",
+          "size_bytes": 442848,
+          "sha256": "094675fefde4e1f752ced7eb99aae503a9485871f660c5f947aa31b19e32f386"
+        },
+        "bss_end": "0x20008200",
+        "stack_top": "0x20010000",
+        "unallocated_ram_after_static_bytes": 32256,
+        "minimum_stack_semihosting_heap_reserve_assertion_bytes": 8192
+      },
+      {
+        "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m7.map",
+        "size_bytes": 153171,
+        "sha256": "353514f14f1e3627f48b8f274d2ee96dca7256c04aeb7e525c34f497453d53f5",
+        "linked_elf": {
+          "source_path": "experiments/ci-34178151748/microcontroller-validation/artifacts/microcontrollers/cortex-m7.elf",
+          "size_bytes": 442848,
+          "sha256": "46ea145dddfdfe6f55ca219e622bdd5fba2c50cec8112e8c552f578015016172"
+        },
+        "bss_end": "0x20008200",
+        "stack_top": "0x20010000",
+        "unallocated_ram_after_static_bytes": 32256,
+        "minimum_stack_semihosting_heap_reserve_assertion_bytes": 8192
+      }
+    ],
+    "scope": "Compiler .su entries are individual function frames, not total runtime or nested/library stack. Linker reserve is not a stack high-water measurement. Semihosting fixture includes golden arrays; physical-board timing and runtime stack usage were not measured."
+  }
+}

@@ -294,3 +294,111 @@ A criterion using current scores alone can hide semantic drift that collapses
 scores into ties; the original artifact contains only 64 full score vectors.
 Any additional score replay reference must be separately identified and must
 not rewrite the original predictions, results, or their provenance.
+
+## Auxiliary replay supplement acceptance review
+
+The implementation now uses a separately identified post-freeze full-score
+supplement for auxiliary models. It reproduces their original labels in original
+evaluation order, binds the score file to the unchanged specification, frozen
+goldens, model hashes, source dataset and query row identities, and records its
+generator/runtime provenance. It is a replay diagnostic, not a claim that these
+full score arrays were captured during the original evaluation.
+
+Verification keeps selected-encoder and waveform-control predictions exact.
+Auxiliary verification checks all score rows against the replay, with the
+existing atol=3e-5 and rtol=3e-4, before classifying a decision difference. Both
+reference and native margins must fit the sum of the two relevant per-score
+perturbation allowances. Native reports retain actual labels/accuracy, frozen
+accuracy, an explicit non-exact status, and each disagreement. Rebuilt query
+bundles preserve the original prediction, score and latent-code arrays.
+
+Nine focused regressions passed. Independent synthetic checks rejected strict
+primary ties, flips without replay evidence, label-preserving score drift,
+nonfinite native/reference scores, wrong shapes, class-order changes, duplicate
+or fractional classes, malformed expected labels and row identities, changed
+file/model hashes, unknown supplement formats, changed tolerances, missing model
+coverage, and source/split identity mismatches. The schema checks were tightened
+during this audit before these passing results were recorded.
+
+A read-only check of the real supplement loaded all 15 auxiliary references and
+confirmed that the original specification and frozen golden hashes are unchanged.
+For spectral_standardized it reported the same one non-exact decision at source
+row 37180, maximum full-score residual 6.55651e-7, native accuracy 60.28%, and frozen
+accuracy 60.30%. The declared two-score allowance at that row is approximately
+4.56729e-4, much wider than the observed 1.19209e-7 reference margin. This remains
+approximate numerical agreement with a disclosed decision difference, not exact
+all-control parity or evidence for the failed accuracy-superiority claim.
+
+The benchmark README's headline statistics, reconstruction ablation interval,
+313-sample receptive field, arithmetic scope, memory accounting, provenance
+limits and pending physical-architecture evidence were also checked. No further
+blocking issue was found in this bounded review. Runtime provenance captured only
+at the end of a process still requires disclosure if source files changed after
+that process imported them.
+
+## Final Windows measurement and interface documentation check
+
+The published Windows figures were checked against their JSON artifacts.
+Selected C inference takes 526.33465 microseconds as the median of three trial
+means, equivalent to 1,899.93 sequential frames/second. Selected NumPy inference
+has a 530.45-microsecond batch-one latency statistic versus 27,905.65 microseconds
+for the FFT control, a ratio of 52.6075. The separately derived arithmetic ratio
+is 53.0895. Batch-128 throughputs are 5,932.916 and 56.3632 frames/second. The
+write-up distinguishes these statistics and implementations and does not claim
+that the C-versus-Python comparison isolates algorithm or ISA performance.
+
+At 512 samples and 3.2 MHz, contiguous frame acquisition would require 6,250
+frames/second and a 160-microsecond frame period. The measured C inference is
+slower than that period; even the reported NumPy batch throughput remains below
+6,250 frames/second. The documentation correctly avoids claiming continuous
+full-rate processing or physical-MCU latency. Pending Linux architecture rows
+must be labeled separately from the completed Windows x86-64 measurements.
+
+The already-encoded C query API documentation matches its implementation: it
+accepts a normalized code from the same frozen encoder, does not renormalize or
+mutate it, traverses the same per-class bank reduction as complete inference,
+and requires no workspace or heap. Startup validation, disjoint buffers, zero
+codes, stable ties and error handling are specified. Matching-only latency is
+kept separate from the measured complete IQ-to-label path. The Python reference
+replacement API also retains its same-encoder compatibility requirement.
+
+The measured Windows report explicitly distinguishes exact primary predictions
+from the disclosed auxiliary near-tie disagreement. Its end-of-run source
+snapshot limitation is recorded; clean-commit CI evidence remains the source
+for final Linux and Cortex-M claims when those runs complete. No new model
+selection or tuning was performed during this final documentation review.
+
+## Completed native and Cortex-M evidence review
+
+CI run 34178151748 completed at clean commit
+5b6e05aa4d150e5ed6c201d6b9c3ecd1699e88b9. The five checked-in measured reports
+were independently compared byte-for-byte with their downloaded sources and
+against the recorded SHA-256 hashes. The selected model hash, shared bundle and
+commit identity agree across both native CPU reports. The final benchmark table
+has no remaining pending architecture rows and matches these measured values.
+
+Linux x86-64 C inference reports 726.020106 microseconds, and AArch64 reports
+469.914148 microseconds, each as a median of three trial means over eight cases.
+The corresponding NumPy selected-model/FFT-control batch-one figures are
+559.379/21,556.042 microseconds and 509.965/21,242.853 microseconds. Their ratios
+are 38.5357 and 41.6555. NumPy verifies all 5,000 primary labels exactly on each
+CPU; the one auxiliary disagreement remains explicit. C checks eight complete
+inference cases, not the full 5,000-row accuracy set. Different hosts and runtime
+implementations prevent interpreting these ratios as isolated ISA effects.
+
+The Cortex-M4F and M7 functional QEMU runs passed; Cortex-M33 was compiled with
+its optional single-precision FPU configuration and was not emulated. Linked
+flash totals are 140,180, 140,180 and 140,172 bytes respectively, with 33,280 bytes
+of static SRAM each. Those sizes include the test harness and golden cases.
+Linker maps leave 32,256 bytes above static state and assert an 8-KiB minimum
+reserve; neither that reserve nor individual compiler stack frames measure total
+runtime stack usage. No physical MCU cycles, energy or acquisition behavior were
+measured.
+
+The final narrative accurately separates operation estimates, native latency,
+batch throughput, C parity coverage, full-query NumPy parity, emulator behavior,
+and physical-board evidence. Linux batched throughput exceeds the nominal
+6,250-frame/second arrival rate in these warm benchmarks, but live acquisition
+and deadline handling have not been demonstrated. The model's frozen accuracy
+remains below the selected matched filter. This bounded final audit is complete;
+no model tuning or additional test evaluation was performed.
